@@ -8,6 +8,47 @@
 -include $(ROOT)local.mk
 -include local.mk
 
+PROJ_ROOT = /home/jeffrey/ESP8266/esp-freertos-7.5.2/
+
+#############################################################
+# Flash Options (SDK)
+#############################################################
+# Flash Cal sector?
+# FLASH_CAL_SECT  ?= no
+FLASH_CAL_SECT ?= yes
+CAL_SECT_ADDR   ?= 0x3FB000
+
+#Flash esp_init_data_default?
+# FLASH_INIT_DEFAULT  ?= no
+FLASH_INIT_DEFAULT ?= yes
+
+#Flash blank.bin?
+FLASH_BLANK    ?= no
+# FLASH_BLANK    ?= yes
+
+#############################################################
+# Flash Options (Programs)
+#############################################################
+# Choose which rom to boot if flashing rconf
+ROM_TO_BOOT        ?= 0
+
+# Choose which roms to flash
+FLASH_RBOOT        ?= yes
+FLASH_RCONF        ?= yes
+FLASH_ROM0         ?= no
+FLASH_ROM1         ?= no
+FLASH_ROM2         ?= no
+FLASH_ROM3         ?= no
+
+# Choose to flash a blank to sector 1.
+# Causes rBoot to recreate conf w defaults.
+FLASH_RCONF_BLANK  ?= no
+
+# Specify names of each rom
+RBOOT_NAME         ?= rboot.bin
+RCONF_NAME         ?= rconf.bin
+#############################################################
+
 # Flash size in megabits
 # Valid values are same as for esptool.py - 2,4,8,16,32
 FLASH_SIZE ?= 16
@@ -16,7 +57,7 @@ FLASH_SIZE ?= 16
 FLASH_MODE ?= qio
 
 # Flash speed in MHz, valid values are same as for esptool.py - 80, 40, 26, 20
-FLASH_SPEED ?= 40
+FLASH_SPEED ?= 80
 
 # Output directories to store intermediate compiled files
 # relative to the program directory
@@ -24,14 +65,43 @@ BUILD_DIR ?= $(PROGRAM_DIR)build/
 FIRMWARE_DIR ?= $(PROGRAM_DIR)firmware/
 
 # esptool.py from https://github.com/themadinventor/esptool
-ESPTOOL ?= esptool.py
+# ESPTOOL ?= esptool.py
+ESPTOOL ?= $(PROJ_ROOT)utils/esptool.py
 # serial port settings for esptool.py
-ESPPORT ?= /dev/ttyUSB0
-ESPBAUD ?= 115200
+ESPPORT ?= /dev/ftdi_esp
+# ESPBAUD ?= 115200
+
+# Esptool2
+ESPTOOL2 ?= $(PROJ_ROOT)utils/esptool2
+ESPTOOL2_SRC_DIR = $(PROJ_ROOT)utils/esptool_2/src
+
+#############################################################
+# Esptool flash options:
+# Configured for esp-12e (4MByte Windbond)
+#############################################################
+ESPBAUD   ?= 460800 # 115200, 230400, 460800
+ET_FM     ?= qio  # qio, dio, qout, dout
+ET_FS     ?= 32m  # 32Mbit flash size in esptool flash command
+ET_FF     ?= 80m  # 80Mhz flash speed in esptool flash command
+# ET_BLANK1 ?= 0x1FE000 # where to flash blank.bin to erase wireless settings
+# ESP_INIT1 ?= 0x1FC000 # flash init data provided by espressif
+ET_BLANK ?= 0x3FE000 # where to flash blank.bin to erase wireless settings
+ESP_INIT ?= 0x3FC000 # flash init data provided by espressif
 
 # firmware tool arguments
-ESPTOOL_ARGS=-fs $(FLASH_SIZE)m -fm $(FLASH_MODE) -ff $(FLASH_SPEED)m
+ESPTOOL_ARGS=-fs $(ET_FS) -fm $(ET_FM) -ff $(ET_FF)
 
+#rBoot Options
+RBOOT_E2_SECTS       ?= .text .data .rodata
+RBOOT_E2_USER_ARGS   ?= -bin -boot2 -iromchksum -4096 -$(ET_FM) -80
+
+# rBoot setup
+RBOOT_SRC_DIR = $(PROJ_ROOT)bootloader/rboot
+RBOOT=bin/rboot.bin
+COMMON=liblibc.a libjsmn.a libjson.a liblwip.a libmqtt.a libspiffs.a libutil.a \
+   libnewcrypto.a libplatform.a librboot.a
+LIBMAIN_SRC = $(SDK_ROOT)lib/libmain.a
+LIBMAIN_DST = $(PROJ_ROOT)sdk-overrides/lib/libmain2.a
 
 # set this to 0 if you don't need floating point support in printf/scanf
 # this will save approx 14.5KB flash space and 448 bytes of statically allocated
@@ -43,7 +113,9 @@ PRINTF_SCANF_FLOAT_SUPPORT ?= 1
 FLAVOR ?= release # or debug
 
 # Compiler names, etc. assume gdb
-CROSS ?= xtensa-lx106-elf-
+#CROSS ?= xtensa-lx106-elf-
+CROSS ?= /home/jeffrey/esp-open-sdk-1.5.4.1/xtensa-lx106-elf/bin/xtensa-lx106-elf-
+SDK_ROOT ?= /home/jeffrey/esp-open-sdk-1.5.4.1/sdk/
 
 # Path to the filteroutput.py tool
 FILTEROUTPUT ?= $(ROOT)/utils/filteroutput.py

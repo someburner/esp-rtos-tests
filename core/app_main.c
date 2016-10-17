@@ -326,6 +326,7 @@ void sdk_wdt_init(void) {
 void sdk_user_init_task(void *params) {
     int phy_ver, pp_ver;
 
+    sdk_system_update_cpu_freq(SYS_CPU_160MHZ);
     sdk_ets_timer_init();
     printf("\nESP-Open-SDK ver: %s compiled @ %s %s\n", OS_VERSION_STR, __DATE__, __TIME__);
     phy_ver = RTCMEM_BACKUP[RTCMEM_BACKUP_PHY_VER] >> 16;

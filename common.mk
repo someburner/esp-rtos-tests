@@ -44,6 +44,43 @@ LDFLAGS      += $(addprefix -T,$(LINKER_SCRIPTS))
 
 FW_FILE = $(addprefix $(FIRMWARE_DIR),$(PROGRAM).bin)
 
+
+
+#############################################################
+# Generate Flash Command
+#############################################################
+
+ifeq ("$(FLASH_RBOOT)","yes")
+# FLASH_BINS += $(RBOOT_ADDR) $(BINDIR)/$(RBOOT_NAME)
+FLASH_BINS += 0x0 $(RBOOT_BIN)
+endif
+ifeq ("$(FLASH_RCONF)","yes")
+# FLASH_BINS += $(RCONF_ADDR) $(BINDIR)/$(RCONF_NAME)
+FLASH_BINS += 0x1000 $(RBOOT_CONF)
+endif
+ifeq ("$(FLASH_RCONF_BLANK)","yes")
+# FLASH_BINS += $(RCONF_ADDR) $(BINDIR)/blank.bin
+endif
+
+FLASH_BINS += 0x2000 $(FW_FILE)
+################################### SPIFFS #####################################
+ifeq ("$(FLASH_SPIFFY0)","yes")
+# FLASH_BINS += $(SPIFFS0_ADDR) $(BINDIR)/$(SPIFFY0_NAME)
+endif
+##################################### SDK ######################################
+ifeq ("$(FLASH_CAL_SECT)","yes")
+# FLASH_BINS += $(CAL_SECT_ADDR) $(BINDIR)/blank.bin
+FLASH_BINS += $(CAL_SECT_ADDR) $(ROOT)bootloader/firmware_prebuilt/blank.bin
+endif
+ifeq ("$(FLASH_INIT_DEFAULT)","yes")
+# FLASH_BINS += $(ESP_INIT) $(BINDIR)/esp_init_data_default.bin
+FLASH_BINS += $(ESP_INIT) $(ROOT)bootloader/firmware_prebuilt/blank.bin
+endif
+ifeq ("$(FLASH_BLANK)","yes")
+# FLASH_BINS += $(ET_BLANK) $(BINDIR)/blank.bin
+FLASH_BINS += $(ET_BLANK) $(ROOT)bootloader/firmware_prebuilt/blank.bin
+endif
+
 # Common include directories, shared across all "components"
 # components will add their include directories to this argument
 #
@@ -68,7 +105,7 @@ Q := @
 vecho := @echo
 endif
 
-.PHONY: all clean flash erase_flash test size rebuild
+.PHONY: all clean flash erase_flash test size rebuild mkesptool2
 
 all: $(PROGRAM_OUT) $(FW_FILE_1) $(FW_FILE_2) $(FW_FILE)
 
@@ -205,13 +242,18 @@ $(FW_FILE_1) $(FW_FILE_2): $(PROGRAM_OUT) $(FIRMWARE_DIR)
 	$(vecho) "FW $@"
 	$(Q) $(ESPTOOL) elf2image $(ESPTOOL_ARGS) $< -o $(FIRMWARE_DIR)
 
+ifeq (0,1)
 $(FW_FILE): $(PROGRAM_OUT) $(FIRMWARE_DIR)
 	$(vecho) "FW $@"
 	$(Q) $(ESPTOOL) elf2image --version=2 $(ESPTOOL_ARGS) $< -o $(FW_FILE)
+else
+$(FW_FILE): $(PROGRAM_OUT) $(FIRMWARE_DIR)
+	$(vecho) "E2 $@"
+	$(Q) $(ESPTOOL2) $(RBOOT_E2_USER_ARGS) $< $@ $(RBOOT_E2_SECTS)
+endif
 
 flash: all
-	$(ESPTOOL) -p $(ESPPORT) --baud $(ESPBAUD) write_flash $(ESPTOOL_ARGS) \
-		0x0 $(RBOOT_BIN) 0x1000 $(RBOOT_CONF) 0x2000 $(FW_FILE) $(SPIFFS_ESPTOOL_ARGS)
+	$(ESPTOOL) -p $(ESPPORT) --baud $(ESPBAUD) write_flash $(ESPTOOL_ARGS) $(FLASH_BINS)
 
 erase_flash:
 	$(ESPTOOL) -p $(ESPPORT) --baud $(ESPBAUD) erase_flash
@@ -234,6 +276,20 @@ clean:
 
 # prevent "intermediate" files from being deleted
 .SECONDARY:
+
+mkesptool2:
+	$(vecho) "esptool2"
+	$(Q) $(MAKE) -C ${ESPTOOL2_SRC_DIR}
+	$(Q) cp -f ${ESPTOOL2_SRC_DIR}/esptool2 $(PROJ_ROOT)utils/esptool2;
+	@rm -f ${ESPTOOL2_SRC_DIR}/esptool2
+
+rconf:
+	$(Q) echo "$(HOST)"
+	$(Q) $(MAKE) CFLAGS=-DROM_TO_BOOT=$(ROM_TO_BOOT) -C $(PROJ_ROOT)tools/rconf_gen
+	$(Q) cp -f ${PROJ_ROOT}tools/rconf_gen/rconf.bin $(PROJ_ROOT)bin/rconf.bin;
+
+rboot:
+	$(Q) $(MAKE) -C ${RBOOT_SRC_DIR}
 
 # print some useful help stuff
 help:
@@ -266,5 +322,3 @@ help:
 	@echo "SAMPLE COMMAND LINE:"
 	@echo "make -j2 test ESPPORT=/dev/ttyUSB0"
 	@echo ""
-
-

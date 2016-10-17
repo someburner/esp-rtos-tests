@@ -14,7 +14,7 @@
 
 // enable 2 way communication between
 // rBoot and the user app via the esp rtc data area
-#define BOOT_RTC_ENABLED
+// #define BOOT_RTC_ENABLED
 
 // Call 'main' rboot.h to pick up defaults for other parameters
 #include_next "rboot.h"
