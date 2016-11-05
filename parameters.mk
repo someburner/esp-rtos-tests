@@ -35,7 +35,7 @@ ROM_TO_BOOT        ?= 0
 # Choose which roms to flash
 FLASH_RBOOT        ?= yes
 FLASH_RCONF        ?= yes
-FLASH_ROM0         ?= no
+FLASH_ROM0         ?= yes
 FLASH_ROM1         ?= no
 FLASH_ROM2         ?= no
 FLASH_ROM3         ?= no

@@ -18,11 +18,7 @@
 
 /* You can use http://test.mosquitto.org/ to test mqtt_client instead
  * of setting up your own MQTT server */
-#define MQTT_HOST ("test.mosquitto.org")
-#define MQTT_PORT 1883
 
-#define MQTT_USER NULL
-#define MQTT_PASS NULL
 
 xSemaphoreHandle wifi_alive;
 xQueueHandle publish_queue;
@@ -35,7 +31,7 @@ static void  beat_task(void *pvParameters)
     int count = 0;
 
     while (1) {
-        vTaskDelayUntil(&xLastWakeTime, 10000 / portTICK_RATE_MS);
+        vTaskDelayUntil(&xLastWakeTime, 10000 / portTICK_RATE_MS); // == 10 seconds
         printf("beat\r\n");
         snprintf(msg, PUB_MSG_LEN, "Beat %d\r\n", count++);
         if (xQueueSend(publish_queue, (void *)msg, 0) == pdFALSE) {

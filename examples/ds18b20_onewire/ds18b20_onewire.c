@@ -9,9 +9,9 @@
 #include "esp/uart.h"
 
 #include "ds18b20/ds18b20.h"
- 
-#define SENSOR_GPIO 13
-#define MAX_SENSORS 8
+
+#define SENSOR_GPIO 5 //GPIO5
+#define MAX_SENSORS 1
 #define RESCAN_INTERVAL 8
 #define LOOP_DELAY_MS 250
 
@@ -19,7 +19,7 @@ void print_temperature(void *pvParameters) {
     ds18b20_addr_t addrs[MAX_SENSORS];
     float temps[MAX_SENSORS];
     int sensor_count;
-    
+
     // There is no special initialization required before using the ds18b20
     // routines.  However, we make sure that the internal pull-up resistor is
     // enabled on the GPIO pin so that one can connect up a sensor without
@@ -75,4 +75,3 @@ void user_init(void) {
 
     xTaskCreate(&print_temperature, (signed char *)"print_temperature", 256, NULL, 2, NULL);
 }
-
