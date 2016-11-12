@@ -15,11 +15,6 @@
 
 #include <semphr.h>
 
-
-/* You can use http://test.mosquitto.org/ to test mqtt_client instead
- * of setting up your own MQTT server */
-
-
 xSemaphoreHandle wifi_alive;
 xQueueHandle publish_queue;
 #define PUB_MSG_LEN 16
@@ -207,12 +202,14 @@ static void  wifi_task(void *pvParameters)
 
 void user_init(void)
 {
-    uart_set_baud(0, 115200);
-    printf("SDK version:%s\n", sdk_system_get_sdk_version());
+   uart_set_baud(0, BAUD_RATE);
 
-    vSemaphoreCreateBinary(wifi_alive);
-    publish_queue = xQueueCreate(3, PUB_MSG_LEN);
-    xTaskCreate(&wifi_task, (int8_t *)"wifi_task",  256, NULL, 2, NULL);
-    xTaskCreate(&beat_task, (int8_t *)"beat_task", 256, NULL, 3, NULL);
-    xTaskCreate(&mqtt_task, (int8_t *)"mqtt_task", 1024, NULL, 4, NULL);
+   printf("mqtt_client\n");
+   printf("SDK version:%s\n", sdk_system_get_sdk_version());
+
+   vSemaphoreCreateBinary(wifi_alive);
+   publish_queue = xQueueCreate(3, PUB_MSG_LEN);
+   xTaskCreate(&wifi_task, (int8_t *)"wifi_task",  256, NULL, 2, NULL);
+   xTaskCreate(&beat_task, (int8_t *)"beat_task", 256, NULL, 3, NULL);
+   xTaskCreate(&mqtt_task, (int8_t *)"mqtt_task", 1024, NULL, 4, NULL);
 }

@@ -7,6 +7,13 @@
  */
 #include <stdint.h>
 
+typedef enum {
+   HW_TIMER_DISABLED = 0,
+   HW_TIMER_INIT = 1,
+   HW_TIMER_READY = 2,
+   HW_TIMER_ACTIVE = 3,
+   HW_TIMER_STOPPED = 4
+} HW_TIMER_STATE_T;
 
 typedef enum {
    OW_SEQ_STATE_INVALID = 0,
@@ -90,8 +97,10 @@ typedef struct
 
 } onewire_driver_t;
 
+HW_TIMER_STATE_T hw_timer_get_state(void);
+uint32_t getTestCount(void);
 
-void ow_hw_init();
-void ow_hw_restart();
-void ow_hw_start();
-void ow_hw_stop();
+void ow_hw_init(void);
+void ow_hw_restart(void);
+void ow_hw_start(void);
+void ow_hw_stop(void);

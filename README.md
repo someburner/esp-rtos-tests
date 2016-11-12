@@ -24,7 +24,7 @@ make -j4 -C examples/ds18b20_onewire
 make flash -j4 -C examples/ds18b20_onewire ESPPORT=/dev/ftdi_esp
 
 make -j4 -C examples/mqtt_client
-make flash -j4 -C examples/mqtt_client ESPPORT=/dev/ftdi_esp
+make flash -j4 -C examples/mqtt_client ESPPORT=/dev/node_mcu
 
 make -j4 -C examples/onewire_hw_timer
 

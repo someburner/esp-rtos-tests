@@ -12,6 +12,13 @@
 #include <FreeRTOS.h>
 #include <esp8266.h>
 
+/* Keeps track of the current state of the HW timer. The wrapper methods      *
+ * available through hw_timer.h use this to ensure everything is okay before  *
+ * arming/disarming/changing callbacks. Otherwise we'd crash most likely.     */
+static HW_TIMER_STATE_T hw_timer_state = HW_TIMER_DISABLED;
+
+static uint32_t testcout = 0;
+
 typedef enum {
     OW_HW_OFF      = -1,
     OW_HW_NO_DELAY = 0,
@@ -40,25 +47,38 @@ typedef struct ow_hw_def
     uint16_t usedPins;
 } ow_hw_t;
 
-// static PWMInfo pwmInfo;
 static ow_hw_t ow_hw;
 
 static void frc1_interrupt_handler(void)
 {
-    uint32_t load = ow_hw._onLoad;
-    ow_hw_step_t step = OW_HW_NO_DELAY;
+   //  uint32_t load = ow_hw._onLoad;
+   //  ow_hw_step_t step = OW_HW_NO_DELAY;
+    testcout++;
 
-    if (ow_hw._step != OW_HW_OFF)
-    {
-        load = ow_hw._offLoad;
-        step = OW_HW_NO_DELAY;
-    }
+   //  if (ow_hw._step != OW_HW_OFF)
+   //  {
+   //      load = ow_hw._offLoad;
+   //      step = OW_HW_NO_DELAY;
+   //  }
 
-    timer_set_load(FRC1, load);
-    ow_hw._step = step;
+    timer_set_load(FRC1, 100000000UL);
+   //  ow_hw._step = step;
 }
 
-void ow_hw_init()
+/*******************************************************************************
+ * Externally accessible wrapper methods
+*******************************************************************************/
+HW_TIMER_STATE_T hw_timer_get_state(void)
+{
+   return hw_timer_state;
+}
+
+uint32_t getTestCount(void)
+{
+   return testcout;
+}
+
+void ow_hw_init(void)
 {
     /* Initialize */
     ow_hw._maxLoad = 0;
@@ -74,29 +94,11 @@ void ow_hw_init()
 
     /* Flag not running */
     ow_hw.running = 0;
+
+    hw_timer_state = HW_TIMER_READY;
 }
 
-// void pwm_set_freq(uint16_t freq)
-// {
-//     ow_hw.freq = freq;
-//
-//     /* Stop now to avoid load being used */
-//     if (ow_hw.running)
-//     {
-//         pwm_stop();
-//         ow_hw.running = 1;
-//     }
-//
-//     timer_set_frequency(FRC1, freq);
-//     ow_hw._maxLoad = timer_get_load(FRC1);
-//
-//     if (ow_hw.running)
-//     {
-//         pwm_start();
-//     }
-// }
-
-void ow_hw_restart()
+void ow_hw_restart(void)
 {
     if (ow_hw.running)
     {
@@ -105,19 +107,20 @@ void ow_hw_restart()
     }
 }
 
-void ow_hw_start()
+void ow_hw_start(void)
 {
-    timer_set_load(FRC1, ow_hw._onLoad);
+    timer_set_load(FRC1, 100000000UL);
     timer_set_reload(FRC1, false);
     timer_set_interrupts(FRC1, true);
     timer_set_run(FRC1, true);
-
-    ow_hw.running = 1;
+    hw_timer_state = HW_TIMER_ACTIVE;
 }
 
-void ow_hw_stop()
+void ow_hw_stop(void)
 {
     timer_set_interrupts(FRC1, false);
     timer_set_run(FRC1, false);
     ow_hw.running = 0;
+
+    ow_hw.running = HW_TIMER_STOPPED;
 }
