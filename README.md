@@ -29,8 +29,6 @@ make flash -j4 -C examples/mqtt_client ESPPORT=/dev/ftdi_esp
 make -j4 -C examples/onewire_hw_timer
 
 
-
-
 ```
 
 **esptool2**:
