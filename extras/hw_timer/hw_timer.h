@@ -1,10 +1,6 @@
-/* Implementation of PWM support for the Espressif SDK.
- *
- * Part of esp-open-rtos
- * Copyright (C) 2015 Guillem Pascual Ginovart (https://github.com/gpascualg)
- * Copyright (C) 2015 Javier Cardona (https://github.com/jcard0na)
- * BSD Licensed as described in the file LICENSE
- */
+#ifndef HW_TIMER_H_
+#define HW_TIMER_H_
+
 #include <stdint.h>
 
 typedef enum {
@@ -100,7 +96,15 @@ typedef struct
 HW_TIMER_STATE_T hw_timer_get_state(void);
 uint32_t getTestCount(void);
 
-void ow_hw_init(void);
-void ow_hw_restart(void);
-void ow_hw_start(void);
-void ow_hw_stop(void);
+void hw_timer_init(void);
+void hw_timer_restart(void);
+void hw_timer_start(void);
+void hw_timer_stop(void);
+
+
+
+
+
+
+
+#endif /* end HW_TIMER_H_ */

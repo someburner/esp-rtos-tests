@@ -5,12 +5,23 @@
  * Copyright (C) 2015 Javier Cardona (https://github.com/jcard0na)
  * BSD Licensed as described in the file LICENSE
  */
-#include "onewire_hw.h"
+#include "hw_timer.h"
 
 #include <espressif/esp_common.h>
 #include <espressif/sdk_private.h>
 #include <FreeRTOS.h>
 #include <esp8266.h>
+
+// #define CLK_DIV TIMER_CLKDIV_1
+#define CLK_DIV TIMER_CLKDIV_16
+
+/* Espressif-provided macro to get ticks from us */
+#define US_TO_RTC_TIMER_TICKS(t)    \
+   ((t) ?                           \
+   (((t) > 0x35A) ?                 \
+   (((t)>>2) * ((APB_CLK_FREQ>>4)/250000) + ((t)&0x3) * ((APB_CLK_FREQ>>4)/1000000)) : \
+   (((t) *(APB_CLK_FREQ>>4)) / 1000000)) : \
+   0)
 
 /* Keeps track of the current state of the HW timer. The wrapper methods      *
  * available through hw_timer.h use this to ensure everything is okay before  *
@@ -18,6 +29,8 @@
 static HW_TIMER_STATE_T hw_timer_state = HW_TIMER_DISABLED;
 
 static uint32_t testcout = 0;
+
+static uint32_t loadval = 0;
 
 typedef enum {
     OW_HW_OFF      = -1,
@@ -51,9 +64,18 @@ static ow_hw_t ow_hw;
 
 static void frc1_interrupt_handler(void)
 {
+   static uint32_t step_count = 0;
+
+   /* Inc. every 10us * 100 = 1ms */
+   if (++step_count == 100)
+   {
+      testcout++;
+      step_count = 0;
+   }
+
+
    //  uint32_t load = ow_hw._onLoad;
    //  ow_hw_step_t step = OW_HW_NO_DELAY;
-    testcout++;
 
    //  if (ow_hw._step != OW_HW_OFF)
    //  {
@@ -61,8 +83,14 @@ static void frc1_interrupt_handler(void)
    //      step = OW_HW_NO_DELAY;
    //  }
 
-    timer_set_load(FRC1, 100000000UL);
-   //  ow_hw._step = step;
+   //  timer_set_load(FRC1, 100000000UL);
+
+   /* Every 10us */
+   // timer_set_load(FRC1, US_TO_RTC_TIMER_TICKS(10UL));
+   // timer_set_run(FRC1, false);
+   // timer_set_timeout(FRC1, 10UL);
+
+   timer_set_load(FRC1, loadval);
 }
 
 /*******************************************************************************
@@ -78,7 +106,7 @@ uint32_t getTestCount(void)
    return testcout;
 }
 
-void ow_hw_init(void)
+void hw_timer_init(void)
 {
     /* Initialize */
     ow_hw._maxLoad = 0;
@@ -87,7 +115,7 @@ void ow_hw_init(void)
     ow_hw._step = OW_HW_OFF;
 
     /* Stop timers and mask interrupts */
-    ow_hw_stop();
+    hw_timer_stop();
 
     /* set up ISRs */
     _xt_isr_attach(INUM_TIMER_FRC1, frc1_interrupt_handler);
@@ -98,25 +126,43 @@ void ow_hw_init(void)
     hw_timer_state = HW_TIMER_READY;
 }
 
-void ow_hw_restart(void)
+void hw_timer_restart(void)
 {
     if (ow_hw.running)
     {
-        ow_hw_stop();
-        ow_hw_start();
+        hw_timer_stop();
+        hw_timer_start();
     }
 }
 
-void ow_hw_start(void)
+void hw_timer_start(void)
 {
-    timer_set_load(FRC1, 100000000UL);
-    timer_set_reload(FRC1, false);
-    timer_set_interrupts(FRC1, true);
-    timer_set_run(FRC1, true);
-    hw_timer_state = HW_TIMER_ACTIVE;
+#if CLK_DIV==TIMER_CLKDIV_1
+   // loadval = timer_time_to_count(FRC1, 10, TIMER_CLKDIV_1);
+   loadval = 700; // closest to every 10us for div1
+#endif
+#if CLK_DIV==TIMER_CLKDIV_16
+   // loadval = timer_time_to_count(FRC1, 10, TIMER_CLKDIV_16);
+   loadval = 44; // closest to every 10us for div16
+#endif
+
+   // loadval = US_TO_RTC_TIMER_TICKS(10UL);
+   printf("loadval = %u\n", loadval);
+
+   timer_set_divider(FRC1, CLK_DIV);
+
+
+   timer_set_reload(FRC1, false);
+   timer_set_interrupts(FRC1, true);
+
+   timer_set_load(FRC1, loadval);
+   // timer_set_timeout(FRC1, timer_time_to_count(FRC1, 10UL, TIMER_CLKDIV_1));
+   timer_set_run(FRC1, true);
+
+   hw_timer_state = HW_TIMER_ACTIVE;
 }
 
-void ow_hw_stop(void)
+void hw_timer_stop(void)
 {
     timer_set_interrupts(FRC1, false);
     timer_set_run(FRC1, false);

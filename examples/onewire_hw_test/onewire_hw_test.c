@@ -14,6 +14,7 @@
 
 #include "maxim28.h"
 
+#define vTaskDelayMs(ms)	vTaskDelay((ms)/portTICK_RATE_MS)
 
 /* use this to tell above timer which seq it was armed from */
 static int onewire_timer_arg = DS_SEQ_INVALID;
@@ -29,21 +30,22 @@ static Temperature latest_temp;
 
 void task1(void *pvParameters)
 {
-    printf("Hello from ow_task!\r\n");
-    uint32_t const init_count = 0;
-    while(1) {
-        vTaskDelay(100);
-        uint32_t count = getTestCount();
-        printf("test count = %lu\n", count);
-    }
+   while(1) {
+      vTaskDelayMs(1000UL); // Print every second
+      /* Should be close to 1000 */
+      uint32_t count = getTestCount();
+      printf("test count = %lu\n", count);
+   }
 }
 
 void user_init(void)
 {
+   uint8_t clock_freq = sdk_system_get_cpu_freq();
    uart_set_baud(0, BAUD_RATE);
 
    printf("onewire_hw_test\n");
-   printf("SDK version:%s\n", sdk_system_get_sdk_version());
+   printf("SDK ver: %s\n", sdk_system_get_sdk_version());
+   printf("Clock Freq = %huMHz\n", clock_freq);
 
    memset(one_driver, 0, sizeof(onewire_driver));
    memset(&latest_temp, 0, sizeof(latest_temp));
@@ -51,11 +53,8 @@ void user_init(void)
    // gpio_set_pullup(SENSOR_GPIO, true, true);
 
    /* Init hw timer */
-   printf("ow_hw_init()\n");
-   ow_hw_init();
-   ow_hw_start();
+   hw_timer_init();
+   hw_timer_start();
 
-
-
-   xTaskCreate(task1, (signed char *)"ow_task", 256, NULL, 2, NULL);
+   xTaskCreate(task1, (signed char *)"hw_timer_task", 256, NULL, 2, NULL);
 }

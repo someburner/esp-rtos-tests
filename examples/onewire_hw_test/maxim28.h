@@ -2,7 +2,7 @@
 #ifndef __MAXIM_28_h
 #define __MAXIM_28_h
 
-#include "onewire_hw.h"
+#include "hw_timer.h"
 
 // #include "user_config.h"
 #define IS_MAX31820
