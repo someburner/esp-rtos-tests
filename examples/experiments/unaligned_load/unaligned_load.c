@@ -229,8 +229,8 @@ void user_init(void)
     test_isr();
     test_sign_extension();
 
-    xTaskHandle taskHandle;
-    xTaskCreate(test_system_interaction, (signed char *)"interactionTask", 256, &taskHandle, 2, NULL);
+    TaskHandle_t taskHandle;
+    xTaskCreate(test_system_interaction, "interactionTask", 256, &taskHandle, 2, NULL);
 }
 
 static volatile bool frc1_ran;
@@ -304,7 +304,7 @@ static void test_system_interaction()
         */
     }
     uint32_t ticks = xTaskGetTickCount() - start;
-    printf("Timer interaction test PASSED after %dms.\n", ticks*portTICK_RATE_MS);
+    printf("Timer interaction test PASSED after %dms.\n", ticks*portTICK_PERIOD_MS);
     abort();
 }
 

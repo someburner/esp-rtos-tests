@@ -19,9 +19,9 @@ void blinkenTask(void *pvParameters)
     gpio_enable(gpio, GPIO_OUTPUT);
     while(1) {
         gpio_write(gpio, 1);
-        vTaskDelay(1000 / portTICK_RATE_MS);
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
         gpio_write(gpio, 0);
-        vTaskDelay(1000 / portTICK_RATE_MS);
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 }
 
@@ -45,15 +45,15 @@ void blinkenRegisterTask(void *pvParameters)
     IOMUX_GPIO2 = IOMUX_GPIO2_FUNC_GPIO | IOMUX_PIN_OUTPUT_ENABLE; /* change this line if you change 'gpio' */
     while(1) {
         GPIO.OUT_SET = BIT(gpio);
-        vTaskDelay(1000 / portTICK_RATE_MS);
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
         GPIO.OUT_CLEAR = BIT(gpio);
-        vTaskDelay(1000 / portTICK_RATE_MS);
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 }
 
 void user_init(void)
 {
     uart_set_baud(0, 115200);
-    xTaskCreate(blinkenTask, (signed char *)"blinkenTask", 256, NULL, 2, NULL);
-    //xTaskCreate(blinkenRegisterTask, (signed char *)"blinkenRegisterTask", 256, NULL, 2, NULL);
+    xTaskCreate(blinkenTask, "blinkenTask", 256, NULL, 2, NULL);
+    //xTaskCreate(blinkenRegisterTask, "blinkenRegisterTask", 256, NULL, 2, NULL);
 }

@@ -26,8 +26,10 @@
 
 #include "espressif/esp_common.h"
 #include "espressif/phy_info.h"
-#include "sdk_internal.h"
 #include "esplibs/libmain.h"
+#include "esplibs/libnet80211.h"
+#include "esplibs/libphy.h"
+#include "esplibs/libpp.h"
 #include "sysparam.h"
 
 /* This is not declared in any header file (but arguably should be) */
@@ -52,10 +54,10 @@ uint8_t sdk_user_init_flag;
 struct sdk_info_st sdk_info;
 
 // xUserTaskHandle -- .bss+0x28
-xTaskHandle sdk_xUserTaskHandle;
+TaskHandle_t sdk_xUserTaskHandle;
 
 // xWatchDogTaskHandle -- .bss+0x2c
-xTaskHandle sdk_xWatchDogTaskHandle;
+TaskHandle_t sdk_xWatchDogTaskHandle;
 
 /* Static function prototypes */
 
@@ -227,7 +229,7 @@ void IRAM sdk_user_start(void) {
 }
 
 // .text+0x3a8
-void IRAM vApplicationStackOverflowHook(xTaskHandle task, char *task_name) {
+void IRAM vApplicationStackOverflowHook(TaskHandle_t task, char *task_name) {
     printf("Task stack overflow (high water mark=%lu name=\"%s\")\n", uxTaskGetStackHighWaterMark(task), task_name);
 }
 
@@ -252,12 +254,25 @@ static void zero_bss(void) {
 
 // .Lfunc006 -- .irom0.text+0x70
 static void init_networking(sdk_phy_info_t *phy_info, uint8_t *mac_addr) {
+    // The call to sdk_register_chipv6_phy appears to change the bus clock,
+    // perhaps from 40MHz to 26MHz, at least it has such an effect on the uart
+    // baud rate. The caller flushes the TX fifos.
     if (sdk_register_chipv6_phy(phy_info)) {
         printf("FATAL: sdk_register_chipv6_phy failed");
         abort();
     }
-    uart_set_baud(0, 74906);
-    uart_set_baud(1, 74906);
+
+    // The boot rom initializes uart0 for a 115200 baud rate but the bus clock
+    // does not appear to be as expected so the initial baud rate is actually
+    // 74906. On a cold boot, to keep the 74906 baud rate the uart0 divisor
+    // would need to changed here to 74906. On a warm boot the bus clock is
+    // expected to have already been set so the boot baud rate is 115200.
+    // Reset the rate here and settle on a 115200 baud rate.
+    if (sdk_rst_if.reason > 0) {
+        uart_set_baud(0, 115200);
+        uart_set_baud(1, 115200);
+    }
+
     sdk_phy_disable_agc();
     sdk_ieee80211_phy_init(sdk_g_ic.s.phy_mode);
     sdk_lmacInit();
@@ -296,11 +311,11 @@ static void init_g_ic(void) {
     }
     if (sdk_g_ic.s._unknown1e4._unknown1e4 == 0xffffffff) {
         bzero(&sdk_g_ic.s._unknown1e4, sizeof(sdk_g_ic.s._unknown1e4));
-        bzero(&sdk_g_ic.s._unknown20f, sizeof(sdk_g_ic.s._unknown20f));
+        bzero(&sdk_g_ic.s.sta_password, sizeof(sdk_g_ic.s.sta_password));
     }
     sdk_g_ic.s.wifi_led_enable = 0;
-    if (sdk_g_ic.s._unknown281 > 1) {
-        sdk_g_ic.s._unknown281 = 0;
+    if (sdk_g_ic.s.sta_bssid_set > 1) {
+        sdk_g_ic.s.sta_bssid_set = 0;
     }
     if (sdk_g_ic.s.ap_number > 5) {
         sdk_g_ic.s.ap_number = 1;
@@ -375,9 +390,9 @@ static __attribute__((noinline)) void user_start_phase2(void) {
     sdk_sleep_reset_analog_rtcreg_8266();
     get_otp_mac_address(sdk_info.sta_mac_addr);
     sdk_wifi_softap_cacl_mac(sdk_info.softap_mac_addr, sdk_info.sta_mac_addr);
-    sdk_info._unknown0 = 0x0104a8c0;
-    sdk_info._unknown4 = 0x00ffffff;
-    sdk_info._unknown8 = 0x0104a8c0;
+    sdk_info.softap_ipaddr.addr = 0x0104a8c0;  // 192.168.4.1
+    sdk_info.softap_netmask.addr = 0x00ffffff; // 255.255.255.0
+    sdk_info.softap_gw.addr = 0x0104a8c0;      // 192.168.4.1
     init_g_ic();
 
     read_saved_phy_info(&phy_info);
@@ -412,7 +427,7 @@ static __attribute__((noinline)) void user_start_phase2(void) {
 
     tcpip_init(NULL, NULL);
     sdk_wdt_init();
-    xTaskCreate(sdk_user_init_task, (signed char *)"uiT", 1024, 0, 14, &sdk_xUserTaskHandle);
+    xTaskCreate(sdk_user_init_task, "uiT", 1024, 0, 14, &sdk_xUserTaskHandle);
     vTaskStartScheduler();
 }
 

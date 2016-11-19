@@ -62,7 +62,7 @@ typedef struct ow_hw_def
 
 static ow_hw_t ow_hw;
 
-static void frc1_interrupt_handler(void)
+static void IRAM frc1_interrupt_handler(void)
 {
    static uint32_t step_count = 0;
 
@@ -90,7 +90,7 @@ static void frc1_interrupt_handler(void)
    // timer_set_run(FRC1, false);
    // timer_set_timeout(FRC1, 10UL);
 
-   timer_set_load(FRC1, loadval);
+   // timer_set_load(FRC1, loadval);
 }
 
 /*******************************************************************************
@@ -142,8 +142,8 @@ void hw_timer_start(void)
    loadval = 700; // closest to every 10us for div1
 #endif
 #if CLK_DIV==TIMER_CLKDIV_16
-   // loadval = timer_time_to_count(FRC1, 10, TIMER_CLKDIV_16);
-   loadval = 44; // closest to every 10us for div16
+   loadval = timer_time_to_count(FRC1, 10, TIMER_CLKDIV_16);
+   // loadval = 44; // closest to every 10us for div16
 #endif
 
    // loadval = US_TO_RTC_TIMER_TICKS(10UL);
@@ -152,7 +152,8 @@ void hw_timer_start(void)
    timer_set_divider(FRC1, CLK_DIV);
 
 
-   timer_set_reload(FRC1, false);
+   // timer_set_reload(FRC1, false);
+   timer_set_reload(FRC1, true);
    timer_set_interrupts(FRC1, true);
 
    timer_set_load(FRC1, loadval);

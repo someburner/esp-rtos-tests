@@ -57,7 +57,7 @@ static dma_descriptor_t dma_block_list[DMA_QUEUE_SIZE];
 static uint8_t dma_buffer[DMA_QUEUE_SIZE][DMA_BUFFER_SIZE];
 
 // Queue of empty DMA blocks
-static xQueueHandle dma_queue;
+static QueueHandle_t dma_queue;
 
 /**
  * Create a circular list of DMA descriptors
@@ -183,7 +183,7 @@ void play_task(void *pvParameters)
 
         printf("underrun counter: %d\n", underrun_counter);
 
-        vTaskDelay(1000 / portTICK_RATE_MS);
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 
     close(fd);
@@ -193,5 +193,5 @@ void user_init(void)
 {
     uart_set_baud(0, 115200);
 
-    xTaskCreate(play_task, (signed char *)"test_task", 1024, NULL, 2, NULL);
+    xTaskCreate(play_task, "test_task", 1024, NULL, 2, NULL);
 }

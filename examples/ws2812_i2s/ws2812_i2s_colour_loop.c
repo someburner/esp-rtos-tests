@@ -70,7 +70,7 @@ static void demo(void *pvParameters)
                     sizeof(ws2812_pixel_t));
 
             ws2812_i2s_update(pixels);
-            vTaskDelay(20 / portTICK_RATE_MS);
+            vTaskDelay(20 / portTICK_PERIOD_MS);
         }
     }
 }
@@ -79,5 +79,5 @@ void user_init(void)
 {
     uart_set_baud(0, 115200);
 
-    xTaskCreate(&demo, (signed char *)"ws2812_i2s", 256, NULL, 10, NULL);
+    xTaskCreate(&demo, "ws2812_i2s", 256, NULL, 10, NULL);
 }

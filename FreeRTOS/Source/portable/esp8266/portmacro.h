@@ -94,13 +94,18 @@ extern "C" {
 #define portSHORT               short
 #define portSTACK_TYPE          unsigned portLONG
 #define portBASE_TYPE           long
+#define portPOINTER_SIZE_TYPE   unsigned portLONG
 
-typedef uint32_t portTickType;
-#define portMAX_DELAY ( portTickType ) 0xffffffff
+typedef portSTACK_TYPE StackType_t;
+typedef portBASE_TYPE BaseType_t;
+typedef unsigned portBASE_TYPE UBaseType_t;
+
+typedef uint32_t TickType_t;
+#define portMAX_DELAY ( TickType_t ) 0xffffffff
 
 /* Architecture specifics. */
 #define portSTACK_GROWTH			( -1 )
-#define portTICK_RATE_MS			( ( portTickType ) 1000 / configTICK_RATE_HZ )
+#define portTICK_PERIOD_MS			( ( TickType_t ) 1000 / configTICK_RATE_HZ )
 #define portBYTE_ALIGNMENT			8
 /*-----------------------------------------------------------*/
 
@@ -139,7 +144,7 @@ void PendSV(enum SVC_ReqType);
    ESPTODO: It may be possible to just read the 'ps' register instead
    of accessing thisvariable.
 */
-extern char sdk_NMIIrqIsOn;
+extern uint8_t sdk_NMIIrqIsOn;
 extern char level1_int_disabled;
 extern unsigned cpu_sr;
 

@@ -93,7 +93,7 @@ void timerRegTask(void *pvParameters)
         printf("frc2 handler called %d times, last value 0x%08x\r\n", frc2_handler_call_count,
                frc2_last_count_val);
 
-        vTaskDelay(500 / portTICK_RATE_MS);
+        vTaskDelay(500 / portTICK_PERIOD_MS);
     }
 }
 
@@ -119,7 +119,7 @@ void frc2_handler(void)
 void user_init(void)
 {
     uart_set_baud(0, 115200);
-    xTaskCreate(timerRegTask, (signed char *)"timerRegTask", 1024, NULL, 2, NULL);
+    xTaskCreate(timerRegTask, "timerRegTask", 1024, NULL, 2, NULL);
 
     TIMER(0).CTRL = VAL2FIELD(TIMER_CTRL_CLKDIV, TIMER_CLKDIV_256) | TIMER_CTRL_RELOAD;
     TIMER(0).LOAD = 0x200000;

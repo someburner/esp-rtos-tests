@@ -49,7 +49,7 @@ typedef struct {
 /* Only one DHCP server task can run at once, so we have global state
    for it.
 */
-static xTaskHandle dhcpserver_task_handle;
+static TaskHandle_t dhcpserver_task_handle = NULL;
 static server_state_t *state;
 
 /* Handlers for various kinds of incoming DHCP messages */
@@ -89,7 +89,7 @@ void dhcpserver_start(const ip_addr_t *first_client_addr, uint8_t max_leases)
     // state->server_if is assigned once the task is running - see comment in dhcpserver_task()
     ip_addr_copy(state->first_client_addr, *first_client_addr);
 
-    xTaskCreate(dhcpserver_task, (signed char *)"DHCPServer", 768, NULL, 8, &dhcpserver_task_handle);
+    xTaskCreate(dhcpserver_task, "DHCPServer", 768, NULL, 8, &dhcpserver_task_handle);
 }
 
 void dhcpserver_stop(void)
@@ -108,7 +108,7 @@ static void dhcpserver_task(void *pxParameter)
 
     state->nc = netconn_new (NETCONN_UDP);
     if(!state->nc) {
-        printf("OTA TFTP: Failed to allocate socket.\r\n");
+        printf("DHCP Server Error: Failed to allocate socket.\r\n");
         return;
     }
 

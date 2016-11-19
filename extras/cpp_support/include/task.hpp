@@ -56,7 +56,7 @@ public:
      */
     int task_create(const char* const pcName, unsigned short usStackDepth = 256, unsigned portBASE_TYPE uxPriority = 2)
     {
-        return xTaskCreate(task_t::_task, (signed char *)pcName, usStackDepth, this, uxPriority, NULL);
+        return xTaskCreate(task_t::_task, pcName, usStackDepth, this, uxPriority, NULL);
     }
     
 protected:
@@ -66,7 +66,7 @@ protected:
      */
     void sleep(unsigned long ms)
     {
-        vTaskDelay(ms / portTICK_RATE_MS);
+        vTaskDelay(ms / portTICK_PERIOD_MS);
     }
     /**
      * 
@@ -74,7 +74,7 @@ protected:
      */
     inline unsigned long millis()
     {
-        return xTaskGetTickCount() * portTICK_RATE_MS;
+        return xTaskGetTickCount() * portTICK_PERIOD_MS;
     }
     
 private:

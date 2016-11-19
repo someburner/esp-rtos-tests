@@ -34,8 +34,8 @@ void buttonPollTask(void *pvParameters)
         {
             taskYIELD();
         }
-        printf("Polled for button press at %dms\r\n", xTaskGetTickCount()*portTICK_RATE_MS);
-        vTaskDelay(200 / portTICK_RATE_MS);
+        printf("Polled for button press at %dms\r\n", xTaskGetTickCount()*portTICK_PERIOD_MS);
+        vTaskDelay(200 / portTICK_PERIOD_MS);
     }
 }
 
@@ -50,14 +50,14 @@ void buttonPollTask(void *pvParameters)
 void buttonIntTask(void *pvParameters)
 {
     printf("Waiting for button press interrupt on gpio %d...\r\n", gpio);
-    xQueueHandle *tsqueue = (xQueueHandle *)pvParameters;
+    QueueHandle_t *tsqueue = (QueueHandle_t *)pvParameters;
     gpio_set_interrupt(gpio, int_type);
 
     uint32_t last = 0;
     while(1) {
         uint32_t button_ts;
         xQueueReceive(*tsqueue, &button_ts, portMAX_DELAY);
-        button_ts *= portTICK_RATE_MS;
+        button_ts *= portTICK_PERIOD_MS;
         if(last < button_ts-200) {
             printf("Button interrupt fired at %dms\r\n", button_ts);
             last = button_ts;
@@ -65,7 +65,7 @@ void buttonIntTask(void *pvParameters)
     }
 }
 
-static xQueueHandle tsqueue;
+static QueueHandle_t tsqueue;
 
 void GPIO_HANDLER(void)
 {
@@ -79,6 +79,6 @@ void user_init(void)
     gpio_enable(gpio, GPIO_INPUT);
 
     tsqueue = xQueueCreate(2, sizeof(uint32_t));
-    xTaskCreate(buttonIntTask, (signed char *)"buttonIntTask", 256, &tsqueue, 2, NULL);
-    xTaskCreate(buttonPollTask, (signed char*)"buttonPollTask", 256, NULL, 1, NULL);
+    xTaskCreate(buttonIntTask, "buttonIntTask", 256, &tsqueue, 2, NULL);
+    xTaskCreate(buttonPollTask, "buttonPollTask", 256, NULL, 1, NULL);
 }

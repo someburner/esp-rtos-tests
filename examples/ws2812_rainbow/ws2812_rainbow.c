@@ -18,7 +18,7 @@
 #include "ws2812.h"
 
 
-#define delay_ms(ms) vTaskDelay((ms) / portTICK_RATE_MS)
+#define delay_ms(ms) vTaskDelay((ms) / portTICK_PERIOD_MS)
 
 
 /** GPIO number used to control the RGBs */
@@ -148,6 +148,6 @@ void user_init(void)
     // notice the glitches due to NMI.
 
     printf("Starting a task. There may be glitches!\r\n");
-    xTaskCreate(&demo, (signed char *)"strip demo", 256, NULL, 10, NULL);
+    xTaskCreate(&demo, "strip demo", 256, NULL, 10, NULL);
 #endif
 }

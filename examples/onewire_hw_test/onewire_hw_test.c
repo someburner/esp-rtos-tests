@@ -14,7 +14,7 @@
 
 #include "maxim28.h"
 
-#define vTaskDelayMs(ms)	vTaskDelay((ms)/portTICK_RATE_MS)
+#define vTaskDelayMs(ms)	vTaskDelay((ms)/portTICK_PERIOD_MS)
 
 /* use this to tell above timer which seq it was armed from */
 static int onewire_timer_arg = DS_SEQ_INVALID;

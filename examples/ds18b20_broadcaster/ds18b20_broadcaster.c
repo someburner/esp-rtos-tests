@@ -88,7 +88,7 @@ void broadcast_temperature(void *pvParameters)
                 }
                 netbuf_delete(buf); // De-allocate packet buffer
             }
-            vTaskDelay(1000/portTICK_RATE_MS);
+            vTaskDelay(1000/portTICK_PERIOD_MS);
         }
 
         err = netconn_disconnect(conn);
@@ -97,7 +97,7 @@ void broadcast_temperature(void *pvParameters)
         err = netconn_delete(conn);
         printf("%s : Deleted connection (%s)\n", __FUNCTION__, lwip_strerr(err));
 
-        vTaskDelay(1000/portTICK_RATE_MS);
+        vTaskDelay(1000/portTICK_PERIOD_MS);
     }
 }
 
@@ -119,6 +119,6 @@ void user_init(void)
     sdk_wifi_set_opmode(STATION_MODE);
     sdk_wifi_station_set_config(&config);
 
-    xTaskCreate(&broadcast_temperature, (signed char *)"broadcast_temperature", 256, NULL, 2, NULL);
+    xTaskCreate(&broadcast_temperature, "broadcast_temperature", 256, NULL, 2, NULL);
 }
 

@@ -181,7 +181,7 @@ void http_get_task(void *pvParameters)
     err_t dns_err;
     ip_addr_t host_ip;
     do {
-        vTaskDelay(500 / portTICK_RATE_MS);
+        vTaskDelay(500 / portTICK_PERIOD_MS);
         dns_err = netconn_gethostbyname(WEB_SERVER, &host_ip);
     } while(dns_err != ERR_OK);
     printf("done.\n");
@@ -313,7 +313,7 @@ void http_get_task(void *pvParameters)
         printf("\n\nsuccesses = %d failures = %d\n", successes, failures);
         for(int countdown = successes ? 10 : 5; countdown >= 0; countdown--) {
             printf("%d... ", countdown);
-            vTaskDelay(1000 / portTICK_RATE_MS);
+            vTaskDelay(1000 / portTICK_PERIOD_MS);
         }
         printf("\nStarting again!\n");
     }
@@ -333,5 +333,5 @@ void user_init(void)
     sdk_wifi_set_opmode(STATION_MODE);
     sdk_wifi_station_set_config(&config);
 
-    xTaskCreate(&http_get_task, (signed char *)"get_task", 2048, NULL, 2, NULL);
+    xTaskCreate(&http_get_task, "get_task", 2048, NULL, 2, NULL);
 }

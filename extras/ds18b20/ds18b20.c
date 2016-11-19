@@ -16,7 +16,7 @@
 #define DS18B20_ALARMSEARCH      0xEC
 #define DS18B20_CONVERT_T        0x44
 
-#define os_sleep_ms(x) vTaskDelay(((x) + portTICK_RATE_MS - 1) / portTICK_RATE_MS)
+#define os_sleep_ms(x) vTaskDelay(((x) + portTICK_PERIOD_MS - 1) / portTICK_PERIOD_MS)
 
 uint8_t ds18b20_read_all(uint8_t pin, ds_sensor_t *result) {
     onewire_addr_t addr;
@@ -24,7 +24,7 @@ uint8_t ds18b20_read_all(uint8_t pin, ds_sensor_t *result) {
     uint8_t sensor_id = 0;
 
     onewire_search_start(&search);
-    
+
     while ((addr = onewire_search_next(&search, pin)) != ONEWIRE_NONE) {
         uint8_t crc = onewire_crc8((uint8_t *)&addr, 7);
         if (crc != (addr >> 56)){
@@ -35,10 +35,10 @@ uint8_t ds18b20_read_all(uint8_t pin, ds_sensor_t *result) {
         onewire_reset(pin);
         onewire_select(pin, addr);
         onewire_write(pin, DS18B20_CONVERT_T);
-        
+
         onewire_power(pin);
-        vTaskDelay(750 / portTICK_RATE_MS);
-        
+        vTaskDelay(750 / portTICK_PERIOD_MS);
+
         onewire_reset(pin);
         onewire_select(pin, addr);
         onewire_write(pin, DS18B20_READ_SCRATCHPAD);
@@ -48,7 +48,7 @@ uint8_t ds18b20_read_all(uint8_t pin, ds_sensor_t *result) {
         for (int k=0;k<9;k++){
             get[k]=onewire_read(pin);
         }
-        
+
         //printf("\n ScratchPAD DATA = %X %X %X %X %X %X %X %X %X\n",get[8],get[7],get[6],get[5],get[4],get[3],get[2],get[1],get[0]);
         crc = onewire_crc8(get, 8);
 
@@ -60,7 +60,7 @@ uint8_t ds18b20_read_all(uint8_t pin, ds_sensor_t *result) {
         uint8_t temp_msb = get[1]; // Sign byte + lsbit
         uint8_t temp_lsb = get[0]; // Temp data plus lsb
         uint16_t temp = temp_msb << 8 | temp_lsb;
-        
+
         float temperature;
 
         temperature = (temp * 625.0)/10000;
@@ -73,24 +73,24 @@ uint8_t ds18b20_read_all(uint8_t pin, ds_sensor_t *result) {
 }
 
 float ds18b20_read_single(uint8_t pin) {
-  
+
     onewire_reset(pin);
     onewire_skip_rom(pin);
     onewire_write(pin, DS18B20_CONVERT_T);
 
     onewire_power(pin);
-    vTaskDelay(750 / portTICK_RATE_MS);
+    vTaskDelay(750 / portTICK_PERIOD_MS);
 
     onewire_reset(pin);
     onewire_skip_rom(pin);
     onewire_write(pin, DS18B20_READ_SCRATCHPAD);
-    
+
     uint8_t get[10];
 
     for (int k=0;k<9;k++){
         get[k]=onewire_read(pin);
     }
-    
+
     //printf("\n ScratchPAD DATA = %X %X %X %X %X %X %X %X %X\n",get[8],get[7],get[6],get[5],get[4],get[3],get[2],get[1],get[0]);
     uint8_t crc = onewire_crc8(get, 8);
 
@@ -101,9 +101,9 @@ float ds18b20_read_single(uint8_t pin) {
 
     uint8_t temp_msb = get[1]; // Sign byte + lsbit
     uint8_t temp_lsb = get[0]; // Temp data plus lsb
-    
+
     uint16_t temp = temp_msb << 8 | temp_lsb;
-    
+
     float temperature;
 
     temperature = (temp * 625.0)/10000;
@@ -148,7 +148,7 @@ bool ds18b20_read_scratchpad(int pin, ds18b20_addr_t addr, uint8_t *buffer) {
         onewire_select(pin, addr);
     }
     onewire_write(pin, DS18B20_READ_SCRATCHPAD);
-    
+
     for (int i = 0; i < 8; i++) {
         buffer[i] = onewire_read(pin);
     }
@@ -172,7 +172,7 @@ float ds18b20_read_temperature(int pin, ds18b20_addr_t addr) {
     }
 
     temp = scratchpad[1] << 8 | scratchpad[0];
-    
+
     return ((float)temp * 625.0)/10000;
 }
 
@@ -219,5 +219,3 @@ bool ds18b20_read_temp_multi(int pin, ds18b20_addr_t *addr_list, int addr_count,
     }
     return result;
 }
-
-
