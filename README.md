@@ -67,7 +67,7 @@ git pull upstream master && git push origin master
 
 
 # Components
-* [FreeRTOS v9.0](http://www.freertos.org/)
+* [FreeRTOS v9.0.0](http://www.freertos.org/)
 * [Espressif IOT RTOS SDK](https://github.com/espressif/ESP8266_RTOS_SDK)
 * [esp-open-sdk](https://github.com/pfalcon/esp-open-sdk/)
 * [esptool.py](https://github.com/themadinventor/esptool)
