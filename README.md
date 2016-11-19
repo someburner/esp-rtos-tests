@@ -6,6 +6,10 @@ Experimental repo for testing FreeRTOS w/ ESP8266. Will gradually morph to
 something for a class project. probably not much use to anyone else unless you
 want to see how to do some custom rBoot configurations.
 
+```
+git clone --recursive https://github.com/someburner/esp-rtos-tests.git
+```
+
 # Building
 
 **NOTE**:
@@ -47,6 +51,17 @@ make rboot -C examples/http_get
 
 The [esp-open-rtos build process wiki page](https://github.com/SuperHouse/esp-open-rtos/wiki/Build-Process)
 has in-depth details of the build process.
+
+**Track/untrack local config**:
+```
+#ignore chagnes
+git update-index --assume-unchanged include/ssid_config.h
+git update-index --assume-unchanged local.mk
+
+#don't ignore
+git update-index --no-assume-unchanged include/ssid_config.h
+git update-index --no-assume-unchanged local.mk
+```
 
 **Pull in esp-open-rtos patches**:
 ```
