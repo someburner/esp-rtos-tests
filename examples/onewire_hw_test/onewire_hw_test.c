@@ -11,8 +11,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
-
-#include "maxim28.h"
+#include "../onewire/maxim28.h"
 
 #define vTaskDelayMs(ms)	vTaskDelay((ms)/portTICK_PERIOD_MS)
 
@@ -27,14 +26,17 @@ static onewire_driver_t * one_driver = &onewire_driver;
 static Temperature latest_temp;
 
 #define SENSOR_GPIO 5 //GPIO5
+static int onoff = 1;
 
 void task1(void *pvParameters)
 {
    while(1) {
-      vTaskDelayMs(1000UL); // Print every second
+      vTaskDelayMs(2000UL); // Print every second
       /* Should be close to 1000 */
       uint32_t count = getTestCount();
       printf("test count = %lu\n", count);
+      gpio_write(2, onoff);
+      onoff = !onoff;
    }
 }
 
@@ -50,11 +52,13 @@ void user_init(void)
    memset(one_driver, 0, sizeof(onewire_driver));
    memset(&latest_temp, 0, sizeof(latest_temp));
 
+   // gpio_enable(2, GPIO_OUTPUT); //GPIO_INPUT, GPIO_OUT_OPEN_DRAIN
+   GPIO.ENABLE_OUT_SET = BIT(2);
+   IOMUX_GPIO2 = IOMUX_GPIO2_FUNC_GPIO | IOMUX_PIN_OUTPUT_ENABLE;
+
    // gpio_set_pullup(SENSOR_GPIO, true, true);
 
-   /* Init hw timer */
-   hw_timer_init();
-   hw_timer_start();
+   onewire_nb_init();
 
    xTaskCreate(task1, (signed char *)"hw_timer_task", 256, NULL, 2, NULL);
 }

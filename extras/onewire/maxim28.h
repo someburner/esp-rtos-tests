@@ -2,9 +2,20 @@
 #ifndef __MAXIM_28_h
 #define __MAXIM_28_h
 
-#include "hw_timer.h"
+/*******************************************************************************
+ * Timing Overview: (Reset)
+ * Step 1: Master Pull LOW for >= 480us then releases
+ * Step 2: Device waits at least 15us after the 480us mark and up to 60us for
+ *         the line to be pulled back HIGH.
+ * Step 3: After the device detects the line has gone HIGH, it pulls low between
+ *         60us and 240us
+ * Step 4: At the end of step 3, the device releases the line. The master should
+ *         be watching for line to come back high 60-240us after it was pulled
+ *         low in step 3.
+*******************************************************************************/
 
-// #include "user_config.h"
+#include "onewire.h"
+
 #define IS_MAX31820
 
 /*******************************************************************************
@@ -104,6 +115,7 @@ typedef enum {
    DS_SEQ_UUID_T,
    DS_SEQ_CONV_T,
    DS_SEQ_READ_T,
+   DS_SEQ_NEXT_READ_T,
    DS_SEQ_MAX
 } DS_SEQ_T;
 

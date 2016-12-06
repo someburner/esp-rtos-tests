@@ -6,6 +6,7 @@
  * BSD Licensed as described in the file LICENSE
  */
 #include "hw_timer.h"
+#include "onewire.h"
 
 #include <espressif/esp_common.h>
 #include <espressif/sdk_private.h>
@@ -64,14 +65,16 @@ static ow_hw_t ow_hw;
 
 static void IRAM frc1_interrupt_handler(void)
 {
-   static uint32_t step_count = 0;
+   // static uint32_t step_count = 0;
+   // /* Inc. every 10us * 100 = 1ms */
+   // if (++step_count >= 100)
+   // {
+   //    testcout++;
+   //    step_count = 0;
+   // }
+   testcout++;
 
-   /* Inc. every 10us * 100 = 1ms */
-   if (++step_count == 100)
-   {
-      testcout++;
-      step_count = 0;
-   }
+   OW_doit();
 
 
    //  uint32_t load = ow_hw._onLoad;
@@ -151,13 +154,10 @@ void hw_timer_start(void)
 
    timer_set_divider(FRC1, CLK_DIV);
 
-
-   // timer_set_reload(FRC1, false);
    timer_set_reload(FRC1, true);
    timer_set_interrupts(FRC1, true);
 
    timer_set_load(FRC1, loadval);
-   // timer_set_timeout(FRC1, timer_time_to_count(FRC1, 10UL, TIMER_CLKDIV_1));
    timer_set_run(FRC1, true);
 
    hw_timer_state = HW_TIMER_ACTIVE;

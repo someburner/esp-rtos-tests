@@ -49,6 +49,12 @@ make mkesptool2 -C examples/http_get
 make rboot -C examples/http_get
 ```
 
+### Hardware Info
+
+**NodeMCU**:
+
+* "D1" on silkscreen == GPIO5
+
 ### Additonal Build Info
 
 The [esp-open-rtos build process wiki page](https://github.com/SuperHouse/esp-open-rtos/wiki/Build-Process)
