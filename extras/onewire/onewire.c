@@ -5,7 +5,6 @@
 
 #include "maxim28.h"
 
-#define OW_DEBUG
 #define vTaskDelayMs(ms)	vTaskDelay((ms)/portTICK_PERIOD_MS)
 
 const int ow_pin = TEMP_SENSOR_PIN;
@@ -37,19 +36,18 @@ static void OW_doit_reset(void)
          one_driver->delay_count = 48;
          one_driver->cur_op = OW_RESET_OP_WAIT_480_LOW;
 
+         /* Line low */
          gpio_enable(ow_pin, GPIO_OUT_OPEN_DRAIN);
          gpio_write(ow_pin, 0);
-         // iomux_set_gpio_function(ow_pin, 0);
       } break;
 
       case OW_RESET_OP_WAIT_480_LOW:
       {
          if ( !(--one_driver->delay_count) )
          {
-            // gpio_disable(ow_pin); // release
-            gpio_enable(ow_pin, GPIO_INPUT);
+            /* release */
+            gpio_disable(ow_pin);
 
-            // gpio_write(ow_pin, 1);
             one_driver->cur_op = OW_RESET_OP_WAIT_60_RESP; // give 60us for resp
             one_driver->delay_count = 6;
          }
@@ -70,7 +68,7 @@ static void OW_doit_reset(void)
          /* If we get here we timed out */
          if  ( !( one_driver->delay_count) )
          {
-            gpio_disable(ow_pin);
+            gpio_disable(ow_pin); // release
             one_driver->error = OW_ERROR_RESET_RESP_TIMEOUT;
             one_driver->seq_state = OW_SEQ_STATE_DONE;
          }
@@ -123,13 +121,15 @@ again:
 
       case OW_READ_OP_LINE_LOW:
       {
-         gpio_enable(ow_pin, GPIO_OUT_OPEN_DRAIN); //GPIO_INPUT, GPIO_OUTPUT, GPIO_OUT_OPEN_DRAIN
-         gpio_write(ow_pin, 0); // linelow
+         /* Line low */
+         gpio_enable(ow_pin, GPIO_OUT_OPEN_DRAIN);
+         gpio_write(ow_pin, 0);
 
+         /* Wait */
          sdk_os_delay_us(2);
 
-         // gpio_disable(ow_pin); // line release
-         gpio_enable(ow_pin, GPIO_INPUT);
+         /* Release */
+         gpio_disable(ow_pin);
 
          one_driver->cur_op = OW_READ_OP_SAMPLE;
       #ifdef OW_ADDTL_DEBUG
@@ -139,7 +139,8 @@ again:
 
       case OW_READ_OP_SAMPLE:
       {
-         sample = gpio_read(ow_pin); // sample
+         /* Sample */
+         sample = gpio_read(ow_pin);
          if (sample)
             data |= bitMask;
 
@@ -164,7 +165,7 @@ again:
                data = 0;
                bitMask = 0x01;
 
-            #ifdef OW_ADDTL_DEBUG
+            #ifdef OW_DEBUG_VALS
                one_driver->readbyte_count++;
             #endif
 
@@ -225,7 +226,8 @@ again:
             one_driver->cur_op = OW_WRITE_OP_WAIT_FIRST; // "0" type
             one_driver->delay_count = 6;
          }
-         gpio_write(ow_pin, 0); // linelow
+         /* Line Low */
+         gpio_write(ow_pin, 0);
          gpio_enable(ow_pin, GPIO_OUT_OPEN_DRAIN);
       } break;
 
@@ -234,6 +236,7 @@ again:
       {
          if  ( one_driver->delay_count == 6 )
          {
+            /* Drive high */
             gpio_write(ow_pin, 1);
          }
 
@@ -249,6 +252,7 @@ again:
          /* Done waiting (or no wait). Write bit. */
          if  ( !(--one_driver->delay_count) )
          {
+            /* Drive high */
             gpio_write(ow_pin, 1);
             one_driver->cur_op = OW_WRITE_OP_FINALLY;
          }
@@ -305,7 +309,7 @@ void OW_doit(void)
 {
    int type = one_driver->op_type;
    int state = one_driver->seq_state;
-#if 1
+
    switch (type)
    {
       case OW_OP_READ:
@@ -344,7 +348,9 @@ void OW_doit(void)
       /* Last OP. This means we're done. Set seq state to finished so we   *
        * know to disable the hw_timer and call the callback.               */
       case OW_OP_END:
+      #ifdef OW_DEBUG_SEQS
          printf("op end\n");
+      #endif
          one_driver->seq_state = OW_SEQ_STATE_DONE;
          break;
 
@@ -389,7 +395,9 @@ void OW_doit(void)
          /* Reset cur_op to 0 to trigger the seq init on the next doit call.  */
          else
          {
+         #ifdef OW_DEBUG_SEQS
             printf("trans:%hd\n", one_driver->seq_pos);
+         #endif
             one_driver->op_type = one_driver->seq_arr[one_driver->seq_pos];
             one_driver->cur_op = 0;
             // hw_timer_arm(10);
@@ -409,22 +417,70 @@ void OW_doit(void)
          // hw_timer_disarm();
       } break;
    }
+}
+
+/* This is called immediately at the end of a read uuid sequence */
+static void read_uuid_done_cb(void)
+{
+#ifdef OW_DEBUG_VALS
+   printf("Read done: %d bits, %d bytes\n", one_driver->readbit_count, one_driver->readbyte_count);
 #endif
+   if (one_driver->error)
+   {
+      OW_handle_error(DS_SEQ_UUID_T);
+      return;
+   }
+   hw_timer_stop();
+
+   ow_task_arg = DS_SEQ_CONV_T;
+
+   one_driver->UUID[0] = DS_FAMILY_CODE;
+   memcpy(one_driver->UUID+1, one_driver->spad_buf, 7);
+
+#ifdef OW_DEBUG_UUID
+   printf("UUID: %02x", one_driver->UUID[0]);
+
+   uint8_t i;
+   for (i=1; i<8; i++)
+   {
+      printf(":%02x", one_driver->UUID[i]);
+   }
+   printf("\n");
+#endif
+
+   /* Reset state to trigger OW_init_seq_task() */
+   one_driver->seq_state = OW_SEQ_STATE_INIT;
+}
+
+/* This is called immediately at the end of a conv_t sequence */
+static void conv_t_done_cb(void)
+{
+   if (one_driver->error)
+   {
+      OW_handle_error(DS_SEQ_CONV_T);
+      return;
+   }
+   hw_timer_stop();
+
+   /* Set next sequence */
+   ow_task_arg = DS_SEQ_READ_T;
+
+   /* Reset state to trigger OW_init_seq_task() */
+   one_driver->seq_state = OW_SEQ_STATE_INIT;
 }
 
 /* This is called immediately at the end of a read_t sequence */
 static void read_temp_done_cb(void)
 {
-   hw_timer_stop();
    uint16_t reading;
-
    if (one_driver->error)
    {
       OW_handle_error(DS_SEQ_READ_T);
       return;
    }
+   hw_timer_stop();
 
-#ifdef OW_DEBUG
+#ifdef OW_DEBUG_VALS
    uint8_t i;
    for (i=0; i<9; i++)
       printf("r:%02x\n", one_driver->spad_buf[i]);
@@ -449,68 +505,19 @@ static void read_temp_done_cb(void)
       latest_temp.fract = (reading & 0xf) * 100 / 16;
       latest_temp.available = 1; // mark as available
 
-   #ifdef OW_DEBUG
-      // OW_print_temperature();
+   #ifdef OW_DEBUG_TEMP
+      OW_print_temperature();
    #endif
       // OW_publish_temperature();
    }
    else
    {
-      printf("owerr: crc %02x(exp) != 0x%02x!\n", one_driver->spad_buf[8], crc);
+      printf("OW CRC err: %02x(exp) != 0x%02x!\n", one_driver->spad_buf[8], crc);
    }
 
    memset(one_driver->spad_buf, 0, OW_SPAD_SIZE);
 
-   // os_timer_disarm(&onewire_timer);
    ow_task_arg = DS_SEQ_NEXT_READ_T;
-   // os_timer_arm(&onewire_timer, 2431UL, false);
-}
-
-/* This is called immediately at the end of a conv_t sequence */
-static void conv_t_done_cb(void)
-{
-   if (one_driver->error)
-   {
-      OW_handle_error(DS_SEQ_CONV_T);
-      return;
-   }
-   /* Start read in 750ms */
-   ow_task_arg = DS_SEQ_READ_T;
-   // os_timer_arm(&onewire_timer, 750, false);
-}
-
-/* This is called immediately at the end of a read uuid sequence */
-static void read_uuid_done_cb(void)
-{
-#ifdef OW_ADDTL_DEBUG
-   printf("Read done: %d bits, %d bytes\n", one_driver->readbit_count, one_driver->readbyte_count);
-#endif
-   if (one_driver->error)
-   {
-      OW_handle_error(DS_SEQ_UUID_T);
-      return;
-   }
-   hw_timer_stop();
-
-   ow_task_arg = DS_SEQ_CONV_T;
-
-   one_driver->UUID[0] = DS_FAMILY_CODE;
-   memcpy(one_driver->UUID+1, one_driver->spad_buf, 7);
-
-#ifdef OW_DEBUG
-   printf("UUID: %02x", one_driver->UUID[0]);
-
-   uint8_t i;
-   for (i=1; i<8; i++)
-   {
-      printf(":%02x", one_driver->UUID[i]);
-   }
-   printf("\n");
-#endif
-
-   /* Start conversion soon */
-   // os_timer_disarm(&onewire_timer);
-   // os_timer_arm(&onewire_timer, 15, false);
 }
 
 static void OW_init_seq_task(void *pxParameter)
@@ -525,7 +532,7 @@ static void OW_init_seq_task(void *pxParameter)
          one_driver->cur_op = 0;
          one_driver->seq_pos = 0;
 
-      #ifdef OW_DEBUG
+      #ifdef OW_DEBUG_SEQS
          printf("1w seq init: type=%hd, op=%hd\n", one_driver->op_type, one_driver->cur_op);
       #endif
 
@@ -550,7 +557,7 @@ static void OW_init_seq_task(void *pxParameter)
 
                /* Read is done. Print out and wait some time to reset the process */
             case DS_SEQ_NEXT_READ_T:
-            #ifdef OW_ADDTL_DEBUG
+            #ifdef OW_DEBUG_VALS
                one_driver->readbit_count = 0;
                one_driver->readbyte_count = 0;
             #endif
@@ -573,36 +580,28 @@ static void OW_init_seq_task(void *pxParameter)
       }
 
    }
-
-   // OW_doit();
-
-
-   // switch (ow_arg)
-   // {
-   //
-   // }
 }
 
 void OW_handle_error(uint8_t cb_type)
 {
+   hw_timer_stop();
    printf("OW err #%hd in seq #%hd\n", one_driver->error, cb_type);
    one_driver->error = OW_ERROR_NONE;
-   hw_timer_stop();
+}
+
+void OW_print_temperature(void)
+{
+   if (latest_temp.available)
+      printf("temp = %c%d.%02d deg.C\n", latest_temp.sign, latest_temp.val, latest_temp.fract);
+   else
+      printf("Temp. data N/A\n");
 }
 
 void OW_init_seq(uint8_t seq)
 {
-   /* Delete OWTask if it exists */
-   // if (ow_task_handle)
-   // {
-   //    vTaskDelete(ow_task_handle);
-   //    ow_task_handle = NULL;
-   // #ifdef OW_DEBUG
-   //    printf("Freed ow_task_handle\n");
-   // #endif
-   // }
-
+#ifdef OW_DEBUG_SEQS
    printf("OW_init_seq\n");
+#endif
 
    /* Assign seq array and args */
    one_driver->seq_arr = ds_seqs[seq];
@@ -659,7 +658,6 @@ void onewire_nb_init(void)
    /* Set onewire to pullup */
    gpio_enable(ow_pin, GPIO_OUT_OPEN_DRAIN); //GPIO_INPUT, GPIO_OUTPUT, GPIO_OUT_OPEN_DRAIN
    gpio_set_pullup(ow_pin, true, false); //pin, enabled, enabled during sleep
-   // gpio_write(ow_pin, 1);
 
    /* Set pin 1 to input */
    // if (set_gpio_mode(5, GPIO_INPUT, GPIO_PULLUP) ) // GPIO_PULLUP,GPIO_PULLDOWN.GPIO_FLOAT
