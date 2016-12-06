@@ -6,8 +6,10 @@ Experimental repo for testing FreeRTOS w/ ESP8266. Will gradually morph to
 something for a class project. probably not much use to anyone else unless you
 want to see how to do some custom rBoot configurations.
 
+Forked from [esp-open-rtos](https://github.com/SuperHouse/esp-open-rtos)
+
 ```
-git clone --recursive https://github.com/someburner/esp-rtos-tests.git
+git clone https://github.com/someburner/esp-rtos-tests.git
 ```
 
 # Building

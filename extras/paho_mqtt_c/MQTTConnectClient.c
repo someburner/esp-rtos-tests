@@ -31,11 +31,21 @@ static int connect_length(mqtt_packet_connect_data_t* options)
 	FUNC_ENTRY;
 
 	if (options->MQTTVersion == 3)
+   {
+      printf("MQTTv31\n");
 		len = 12; /* variable depending on MQTT or MQIsdp */
+   }
 	else if (options->MQTTVersion == 4)
+   {
+      printf("MQTTv311\n");
 		len = 10;
+      // if (options->clientID)
+   }
 
-	len += mqtt_strlen(options->clientID)+2;
+	// len += mqtt_strlen(options->clientID)+2;
+	// len += 4;
+	len += 2;
+
 	if (options->willFlag)
 		len += mqtt_strlen(options->will.topicName)+2 + mqtt_strlen(options->will.message)+2;
 	if (options->username.cstring || options->username.lenstring.data)
@@ -85,6 +95,7 @@ int mqtt_serialize_connect(unsigned char* buf, int buflen, mqtt_packet_connect_d
 	{
 		mqtt_write_cstr(&ptr, "MQIsdp");
 		mqtt_write_char(&ptr, (char) 3);
+      // if (sizeof(options->clientID) == 2) && (options->clientID->)
 	}
 
 	flags.all = 0;
@@ -103,8 +114,10 @@ int mqtt_serialize_connect(unsigned char* buf, int buflen, mqtt_packet_connect_d
 
 	mqtt_write_char(&ptr, flags.all);
 	mqtt_write_int(&ptr, options->keepAliveInterval);
+
 	mqtt_write_mqqt_str(&ptr, options->clientID);
-	if (options->willFlag)
+
+   if (options->willFlag)
 	{
 		mqtt_write_mqqt_str(&ptr, options->will.topicName);
 		mqtt_write_mqqt_str(&ptr, options->will.message);

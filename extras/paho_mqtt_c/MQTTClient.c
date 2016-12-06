@@ -494,7 +494,7 @@ int  mqtt_publish(mqtt_client_t* c, const char* topic, mqtt_message_t* message)
     if (message->qos == MQTT_QOS1 || message->qos == MQTT_QOS2)
         message->id = get_next_packet_id(c);
 
-    len = mqtt_serialize_publish(c->buf, c->buf_size, 0, message->qos, message->retained, message->id, 
+    len = mqtt_serialize_publish(c->buf, c->buf_size, 0, message->qos, message->retained, message->id,
               topicStr, (unsigned char*)message->payload, message->payloadlen);
     if (len <= 0)
         goto exit;
@@ -561,4 +561,3 @@ int  mqtt_disconnect(mqtt_client_t* c)
     c->isconnected = 0;
     return rc;
 }
-
