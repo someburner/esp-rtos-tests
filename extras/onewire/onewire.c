@@ -587,6 +587,7 @@ void OW_handle_error(uint8_t cb_type)
    hw_timer_stop();
    printf("OW err #%hd in seq #%hd\n", one_driver->error, cb_type);
    one_driver->error = OW_ERROR_NONE;
+   one_driver->ow_state = OW_STATE_READY;
 }
 
 void OW_print_temperature(void)
@@ -602,7 +603,6 @@ void OW_init_seq(uint8_t seq)
 #ifdef OW_DEBUG_SEQS
    printf("OW_init_seq\n");
 #endif
-
    /* Assign seq array and args */
    one_driver->seq_arr = ds_seqs[seq];
    one_driver->arg_arr = ds_seq_args[seq];
@@ -626,59 +626,71 @@ void OW_init_seq(uint8_t seq)
    }
 
    hw_timer_start();
-
-   /* TaskFunction_t pvTaskCode, char* pcName, uint usStackDepth, void *pvParameters, UBaseType_t uxPriority, TaskHandle_t *pxCreatedTask */
-   // xTaskCreate(ow_task, "OWTask", 768, &ow_task_arg, 6, &ow_task_handle);
-
-   /* Send init post */
-   // system_os_post(EVENT_MON_TASK_PRIO, (os_signal_t)MSG_IFACE_ONE_WIRE, (os_param_t)one_driver);
 }
 
-void onewire_nb_init(void)
+bool OW_request_new_temp(void)
 {
-#if EN_TEMP_SENSOR
+   /* Clear spad buffer */
+   memset(one_driver->spad_buf, 0, sizeof(OW_SPAD_SIZE));
+
+   if (one_driver->ow_state != OW_STATE_READY)
+   {
+      printf("ow not ready! Reason: %s\n",
+         (one_driver->ow_state == OW_STATE_IN_PROGRESS)?"Reading in progress":"not initialized" );
+      return false;
+   }
+
+   /* Set onewire to pullup */
+   gpio_enable(ow_pin, GPIO_OUT_OPEN_DRAIN);
+   gpio_set_pullup(ow_pin, true, false); //pin, enabled, enabled during sleep
+
+   /* Start from Convert T if we have UUID */
+   if (one_driver->have_uuid)
+   {
+      printf("OW: init cont_t seq\n");
+
+      /* Assign UUID seq array and args */
+      one_driver->seq_arr = ds_seqs[DS_SEQ_CONV_T];
+      one_driver->arg_arr = ds_seq_args[DS_SEQ_CONV_T];
+      one_driver->seq_len = ds_seq_lens[DS_SEQ_CONV_T];
+
+      ow_task_arg = (int)DS_SEQ_CONV_T;
+      one_driver->callback = conv_t_done_cb;
+   }
+   /* Start from UUID if we don't have one yet */
+   else
+   {
+      printf("OW: init uuid seq\n");
+
+      /* Assign UUID seq array and args */
+      one_driver->seq_arr = ds_seqs[DS_SEQ_UUID_T];
+      one_driver->arg_arr = ds_seq_args[DS_SEQ_UUID_T];
+      one_driver->seq_len = ds_seq_lens[DS_SEQ_UUID_T];
+
+      ow_task_arg = (int)DS_SEQ_UUID_T;
+      one_driver->callback = read_uuid_done_cb;
+   }
+
+   /* Set to init state */
+   one_driver->error = OW_ERROR_NONE;
+   one_driver->seq_state = OW_SEQ_STATE_INIT;
+   return true;
+}
+
+void OW_init(void)
+{
    /* Init all to 0 */
    memset(one_driver, 0, sizeof(onewire_driver));
    memset(&latest_temp, 0, sizeof(latest_temp));
 
-   one_driver->seq_state = OW_SEQ_STATE_INIT;
-   /* Assign seq array and args */
-   one_driver->seq_arr = ds_seqs[DS_SEQ_UUID_T];
-   one_driver->arg_arr = ds_seq_args[DS_SEQ_UUID_T];
-   one_driver->seq_len = ds_seq_lens[DS_SEQ_UUID_T];
-
-   /* Set to init state */
-   one_driver->error = OW_ERROR_NONE;
-   ow_task_arg = (int)DS_SEQ_UUID_T;
-   one_driver->callback = read_uuid_done_cb;
-
-   // os_timer_disarm(&onewire_timer);
-   // os_timer_setfn(&onewire_timer, (os_timer_func_t *) onewire_seq_timer_cb, &ow_task_arg);
-
    /* Set onewire to pullup */
-   gpio_enable(ow_pin, GPIO_OUT_OPEN_DRAIN); //GPIO_INPUT, GPIO_OUTPUT, GPIO_OUT_OPEN_DRAIN
+   gpio_enable(ow_pin, GPIO_OUT_OPEN_DRAIN);
    gpio_set_pullup(ow_pin, true, false); //pin, enabled, enabled during sleep
-
-   /* Set pin 1 to input */
-   // if (set_gpio_mode(5, GPIO_INPUT, GPIO_PULLUP) ) // GPIO_PULLUP,GPIO_PULLDOWN.GPIO_FLOAT
-   // {
-   //    printf("GPIO%d set mode\r\n", ow_pin);
-   // }
 
    /* Init hw timer */
    hw_timer_init();
-   // hw_timer_start();
-
-    // Create a queue capable of containing 10 pointers to AMessage structures.
-   //  ow_queue_handle = xQueueCreate( 10, sizeof( struct AMessage * ) );
-
-   // uint32_t * argptr = hw_timer_set_func(ow_hw_timer_cb);
-   // xTaskCreate(ow_task, "OWTask", 768, &ow_task_arg, 6, &ow_task_handle);
 
    xTaskCreate(OW_init_seq_task, "OWInitSeqTask", 1024, NULL, 6, &ow_seq_int_task_handle);
-   // OW_init_seq(DS_SEQ_UUID_T);
 
-#else
-   printf("Temperature sensor not enabled!\n");
-#endif
+   one_driver->ow_state = OW_STATE_READY;
 }

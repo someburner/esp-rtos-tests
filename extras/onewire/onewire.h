@@ -69,6 +69,12 @@ typedef enum {
    OW_ERROR_RESET_RESP_TIMEOUT  /* Errno. 3 */
 } OW_ERROR_T;
 
+typedef enum {
+   OW_STATE_INVALID = 0,
+   OW_STATE_DISABLED,
+   OW_STATE_IN_PROGRESS,
+   OW_STATE_READY
+} OW_STATE_T;
 
 typedef void (*OW_cb_t)(void);
 
@@ -77,19 +83,22 @@ typedef struct
    uint8_t * seq_arr;   // read temp, read rom, etc
    uint8_t * arg_arr;   // read temp, read rom, etc
 
-   uint8_t   seq_len;
-
+   uint8_t seq_len;
    uint8_t seq_state;   // init, started, stopped
    uint8_t seq_pos;     // reset, skip rom, conv, etc
+   uint8_t error;
 
    uint8_t op_type;     // read, write, reset, etc (OW_OP_T)
    uint8_t cur_op;      // where are we in the operation
    uint8_t delay_count; // 1 count per 10us
 
-   uint8_t spad_buf[9]; // scratchpad buffer for temperature data
+   uint8_t spad_buf[OW_SPAD_SIZE]; // scratchpad buffer for temperature data
    uint8_t UUID[8];     // unique ID for this device
 
-   uint8_t error;
+   uint8_t have_uuid;
+   uint8_t ow_state;
+   uint8_t pad[2];
+
    OW_cb_t callback;
 
    /* Useful for debugging */
@@ -106,7 +115,8 @@ void OW_init_seq(uint8_t seq);
 void OW_print_temperature(void);
 void OW_handle_error(uint8_t cb_type);
 
-void onewire_nb_init(void);
+bool OW_request_new_temp(void);
+void OW_init(void);
 
 
 

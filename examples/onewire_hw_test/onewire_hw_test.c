@@ -33,10 +33,12 @@ void task1(void *pvParameters)
    while(1) {
       vTaskDelayMs(2000UL); // Print every second
       /* Should be close to 1000 */
-      uint32_t count = getTestCount();
-      printf("test count = %lu\n", count);
+      // uint32_t count = getTestCount();
+      // printf("test count = %lu\n", count);
       gpio_write(2, onoff);
       onoff = !onoff;
+
+      OW_request_new_temp();
    }
 }
 
@@ -58,7 +60,13 @@ void user_init(void)
 
    // gpio_set_pullup(SENSOR_GPIO, true, true);
 
-   onewire_nb_init();
+   OW_init();
+   printf("Request temp ");
+   if (OW_request_new_temp())
+      printf("OK\n");
+   else
+      printf("failed!\n");
+
 
    xTaskCreate(task1, (signed char *)"hw_timer_task", 256, NULL, 2, NULL);
 }
