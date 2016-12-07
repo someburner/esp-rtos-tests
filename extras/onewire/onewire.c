@@ -699,7 +699,7 @@ void OW_init(void)
    /* Init hw timer */
    hw_timer_init();
 
-   xTaskCreate(OW_init_seq_task, "OWInitSeqTask", 1024, NULL, 6, &ow_seq_int_task_handle);
+   xTaskCreate(OW_init_seq_task, "OWInitSeqTask", 1024, NULL, OW_TASK_PRIO, &ow_seq_int_task_handle);
 
    one_driver->ow_state = OW_STATE_READY;
 }

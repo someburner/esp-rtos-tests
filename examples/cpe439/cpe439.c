@@ -46,12 +46,12 @@ void user_init(void)
    if (OW_request_new_temp())
    {
       printf("OK\n");
-      xTaskCreate(tempTask, (signed char *)"tempTask", 256, NULL, 2, NULL);
+      xTaskCreate(tempTask, (signed char *)"tempTask", 256, NULL, OW_TASK_PRIO, NULL);
    }
    else
    {
       printf("failed!\n");
    }
 
-   xTaskCreate(task1, (signed char *)"task1", 256, NULL, 2, NULL);
+   xTaskCreate(task1, (signed char *)"task1", 256, NULL, 0, NULL);
 }

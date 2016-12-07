@@ -9,6 +9,7 @@ onewire_INC_DIR = $(onewire_ROOT)
 onewire_SRC_DIR = $(onewire_ROOT)
 
 onewire_CFLAGS += \
-	-DEN_TEMP_SENSOR=$(EN_TEMP_SENSOR) -DTEMP_SENSOR_PIN=$(TEMP_SENSOR_PIN)
+	-DEN_TEMP_SENSOR=$(EN_TEMP_SENSOR) -DTEMP_SENSOR_PIN=$(TEMP_SENSOR_PIN) \
+	-DOW_TASK_PRIO=$(OW_TASK_PRIO)
 
 $(eval $(call component_compile_rules,onewire))
