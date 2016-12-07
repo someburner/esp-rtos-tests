@@ -5,15 +5,17 @@
  * Copyright (C) 2015 Javier Cardona (https://github.com/jcard0na)
  * BSD Licensed as described in the file LICENSE
  */
-#include "hw_timer.h"
-#include "onewire.h"
-
 #include <espressif/esp_common.h>
 #include <espressif/sdk_private.h>
 #include <FreeRTOS.h>
 #include <esp8266.h>
+#include "hw_timer.h"
+
+#include "ws2812.h"
+#include "onewire.h"
 
 #define HW_TIMER_DEBUG 0
+#define HW_TIMER_WS2812 1
 
 // #define CLK_DIV TIMER_CLKDIV_1
 #define CLK_DIV TIMER_CLKDIV_16
@@ -70,7 +72,12 @@ static void IRAM frc1_interrupt_handler(void)
 #if HW_TIMER_DEBUG==1
    testcout++;
 #endif
+
+#if HW_TIMER_WS2812
+   ws2812_doit();
+#else
    OW_doit();
+#endif
 }
 
 /*******************************************************************************

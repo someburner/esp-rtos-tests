@@ -15,16 +15,22 @@
 
 #include <semphr.h>
 
+#define vTaskDelayMs(ms)	vTaskDelay((ms)/portTICK_PERIOD_MS)
+
 #if MQTT_0LEN_CLIENT_ID==1
 #define MQTT_CLEANSESSION
+static char mqtt_client_id[2] = { 0, 0 };
+#else
+#error "MQTTv31 not supported."
 #endif
+
+#define TEMP_DATA_PUBLEN 7
 
 SemaphoreHandle_t wifi_alive;
 QueueHandle_t publish_queue;
-#define TEMP_DATA_PUBLEN 7
-#define vTaskDelayMs(ms)	vTaskDelay((ms)/portTICK_PERIOD_MS)
 
-static void  beat_task(void *p)
+
+static void temp_pub_task(void *p)
 {
    QueueHandle_t *tempQueueHandle = (QueueHandle_t *)p;
    // TickType_t xLastWakeTime = xTaskGetTickCount();
@@ -50,75 +56,36 @@ static void  beat_task(void *p)
       }
 
       taskYIELD();
-
-      // printf("Sent!\r\n");
       // vTaskDelayMs(553);
    }
 }
 
 static void  topic_received(mqtt_message_data_t *md)
 {
-    int i;
-    mqtt_message_t *message = md->message;
-    printf("Received: ");
-    for( i = 0; i < md->topic->lenstring.len; ++i)
-        printf("%c", md->topic->lenstring.data[ i ]);
+   int i;
+   mqtt_message_t *message = md->message;
+   printf("Received: ");
+   for( i = 0; i < md->topic->lenstring.len; ++i)
+      printf("%c", md->topic->lenstring.data[ i ]);
 
-    printf(" = ");
-    for( i = 0; i < (int)message->payloadlen; ++i)
-        printf("%c", ((char *)(message->payload))[i]);
+   printf(" = ");
+   for( i = 0; i < (int)message->payloadlen; ++i)
+      printf("%c", ((char *)(message->payload))[i]);
 
-    printf("\r\n");
+   printf("\r\n");
 }
-
-#if MQTT_0LEN_CLIENT_ID==0
-static const char *  get_my_id(void)
-{
-    // Use MAC address for Station as unique ID
-    static char my_id[13];
-    static bool my_id_done = false;
-    int8_t i;
-    uint8_t x;
-    if (my_id_done)
-        return my_id;
-    if (!sdk_wifi_get_macaddr(STATION_IF, (uint8_t *)my_id))
-        return NULL;
-    for (i = 5; i >= 0; --i)
-    {
-        x = my_id[i] & 0x0F;
-        if (x > 9) x += 7;
-        my_id[i * 2 + 1] = x + '0';
-        x = my_id[i] >> 4;
-        if (x > 9) x += 7;
-        my_id[i * 2] = x + '0';
-    }
-    my_id[12] = '\0';
-    my_id_done = true;
-    return my_id;
-}
-#endif
 
 static void  mqtt_task(void *pvParameters)
 {
-   int ret         = 0;
+   int ret = 0;
    struct mqtt_network network;
-   mqtt_client_t client   = mqtt_client_default;
+   mqtt_client_t client = mqtt_client_default;
 
-#if MQTT_0LEN_CLIENT_ID==1
-   char mqtt_client_id[2] = { 0, 0 };
-#else
-   char mqtt_client_id[20];
-#endif
    uint8_t mqtt_buf[100];
    uint8_t mqtt_readbuf[100];
    mqtt_packet_connect_data_t data = mqtt_packet_connect_data_initializer;
 
    mqtt_network_new( &network );
-#if MQTT_0LEN_CLIENT_ID==0
-   memset(mqtt_client_id, 0, sizeof(mqtt_client_id));
-   strcpy(mqtt_client_id, "ESP-");
-   strcat(mqtt_client_id, get_my_id());
-#endif
 
    while(1)
    {
@@ -237,8 +204,7 @@ void mqtt_app_init(QueueHandle_t * pubTempQueue)
    vSemaphoreCreateBinary(wifi_alive);
    publish_queue = xQueueCreate(3, TEMP_DATA_PUBLEN);
    xTaskCreate(&wifi_task, "wifi_task",  256, NULL, WIFI_TASK_PRIO, NULL);
-   xTaskCreate(&beat_task, "beat_task", 512, pubTempQueue, BEAT_TASK_PRIO, NULL);
-   // xTaskCreate(&beat_task, "beat_task", 512, pubTempQueue, 7, NULL);
+   xTaskCreate(&temp_pub_task, "temp_pub_task", 512, pubTempQueue, TEMP_PUB_TASK_PRIO, NULL);
 
    xTaskCreate(&mqtt_task, "mqtt_task", 1024, NULL, MQTT_TASK_PRIO, NULL);
 }

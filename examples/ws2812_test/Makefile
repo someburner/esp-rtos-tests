@@ -1,5 +1,7 @@
-PROGRAM=cpe439
-EXTRA_COMPONENTS = extras/paho_mqtt_c extras/hw_timer extras/onewire extras/crc
+# Makefile for the ws2812 Rainbow example
+
+PROGRAM=ws2812_test
+EXTRA_COMPONENTS = extras/ws2812 extras/hw_timer
 
 # Create user flags and pass to main program
 user_CFLAGS += -DBAUD_RATE=$(BAUD_RATE) -DMQTT_HOST=$(MQTT_HOST) \
@@ -9,9 +11,7 @@ user_CFLAGS += -DBAUD_RATE=$(BAUD_RATE) -DMQTT_HOST=$(MQTT_HOST) \
 	-DTEMP_PUB_TASK_PRIO=$(TEMP_PUB_TASK_PRIO) -DMQTT_TASK_PRIO=$(MQTT_TASK_PRIO) \
 	-DOW_TASK_PRIO=$(OW_TASK_PRIO)
 
-#-D=$()
 PROGRAM_CFLAGS += $(user_CFLAGS)
-
 # user_CFLAGS := $(CFLAGS) $(user_CFLAGS)
 
 include ../../common.mk
