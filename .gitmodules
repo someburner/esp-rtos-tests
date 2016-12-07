@@ -1,6 +1,3 @@
-[submodule "extras/mbedtls/mbedtls"]
-	path = extras/mbedtls/mbedtls
-	url = https://github.com/ARMmbed/mbedtls.git
 [submodule "extras/jsmn/jsmn"]
 	path = extras/jsmn/jsmn
 	url = https://github.com/zserge/jsmn.git
