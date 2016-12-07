@@ -13,6 +13,8 @@
 #include <FreeRTOS.h>
 #include <esp8266.h>
 
+#define HW_TIMER_DEBUG 0
+
 // #define CLK_DIV TIMER_CLKDIV_1
 #define CLK_DIV TIMER_CLKDIV_16
 
@@ -65,35 +67,10 @@ static ow_hw_t ow_hw;
 
 static void IRAM frc1_interrupt_handler(void)
 {
-   // static uint32_t step_count = 0;
-   // /* Inc. every 10us * 100 = 1ms */
-   // if (++step_count >= 100)
-   // {
-   //    testcout++;
-   //    step_count = 0;
-   // }
+#if HW_TIMER_DEBUG==1
    testcout++;
-
+#endif
    OW_doit();
-
-
-   //  uint32_t load = ow_hw._onLoad;
-   //  ow_hw_step_t step = OW_HW_NO_DELAY;
-
-   //  if (ow_hw._step != OW_HW_OFF)
-   //  {
-   //      load = ow_hw._offLoad;
-   //      step = OW_HW_NO_DELAY;
-   //  }
-
-   //  timer_set_load(FRC1, 100000000UL);
-
-   /* Every 10us */
-   // timer_set_load(FRC1, US_TO_RTC_TIMER_TICKS(10UL));
-   // timer_set_run(FRC1, false);
-   // timer_set_timeout(FRC1, 10UL);
-
-   // timer_set_load(FRC1, loadval);
 }
 
 /*******************************************************************************
@@ -150,7 +127,9 @@ void hw_timer_start(void)
 #endif
 
    // loadval = US_TO_RTC_TIMER_TICKS(10UL);
+#if HW_TIMER_DEBUG==1
    printf("loadval = %u\n", loadval);
+#endif
 
    timer_set_divider(FRC1, CLK_DIV);
 

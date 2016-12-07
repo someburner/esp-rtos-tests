@@ -7,8 +7,7 @@
 // #define OW_DEBUG_SEQS
 // #define OW_DEBUG_VALS
 #define OW_DEBUG_TEMP
-#define OW_DEBUG_UUID
-
+// #define OW_DEBUG_UUID
 
 /* Scratchpad size (uint8_t) */
 #define OW_SPAD_SIZE 9

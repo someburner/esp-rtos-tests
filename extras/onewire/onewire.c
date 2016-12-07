@@ -422,6 +422,7 @@ void OW_doit(void)
 /* This is called immediately at the end of a read uuid sequence */
 static void read_uuid_done_cb(void)
 {
+   uint8_t i, j;
 #ifdef OW_DEBUG_VALS
    printf("Read done: %d bits, %d bytes\n", one_driver->readbit_count, one_driver->readbyte_count);
 #endif
@@ -437,14 +438,26 @@ static void read_uuid_done_cb(void)
    one_driver->UUID[0] = DS_FAMILY_CODE;
    memcpy(one_driver->UUID+1, one_driver->spad_buf, 7);
 
+   for (i=1,j=0; i<8; i++)
+   {
+      if ((one_driver->UUID[i] == 0) || (one_driver->UUID[i] == 0xff))
+      {
+         j++;
+      }
+   }
+
+   if (j == (OW_UUID_LEN-1))
+   {
+      one_driver->have_uuid = 0;
+      printf("bad UUID. Retrying\n");
+   } else {
+      one_driver->have_uuid = 1;
+   }
+
 #ifdef OW_DEBUG_UUID
    printf("UUID: %02x", one_driver->UUID[0]);
-
-   uint8_t i;
    for (i=1; i<8; i++)
-   {
       printf(":%02x", one_driver->UUID[i]);
-   }
    printf("\n");
 #endif
 
@@ -647,8 +660,6 @@ bool OW_request_new_temp(void)
    /* Start from Convert T if we have UUID */
    if (one_driver->have_uuid)
    {
-      printf("OW: init cont_t seq\n");
-
       /* Assign UUID seq array and args */
       one_driver->seq_arr = ds_seqs[DS_SEQ_CONV_T];
       one_driver->arg_arr = ds_seq_args[DS_SEQ_CONV_T];
@@ -660,8 +671,6 @@ bool OW_request_new_temp(void)
    /* Start from UUID if we don't have one yet */
    else
    {
-      printf("OW: init uuid seq\n");
-
       /* Assign UUID seq array and args */
       one_driver->seq_arr = ds_seqs[DS_SEQ_UUID_T];
       one_driver->arg_arr = ds_seq_args[DS_SEQ_UUID_T];
