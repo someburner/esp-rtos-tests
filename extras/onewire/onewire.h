@@ -3,10 +3,11 @@
 
 #include <espressif/esp_misc.h> // sdk_os_delay_us
 #include "FreeRTOS.h"
+#include "queue.h"
 
 // #define OW_DEBUG_SEQS
 // #define OW_DEBUG_VALS
-#define OW_DEBUG_TEMP
+// #define OW_DEBUG_TEMP
 // #define OW_DEBUG_UUID
 
 /* Scratchpad size (uint8_t) */
@@ -111,11 +112,11 @@ typedef struct
 void OW_doit(void);
 void OW_init_seq(uint8_t seq);
 
-void OW_print_temperature(void);
+void OW_queue_temperature(void);
 void OW_handle_error(uint8_t cb_type);
 
 bool OW_request_new_temp(void);
-void OW_init(void);
+void OW_init(QueueHandle_t * pubTempQueue);
 
 
 

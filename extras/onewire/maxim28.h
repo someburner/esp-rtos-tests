@@ -133,16 +133,16 @@ typedef struct {
 
 #define MAX_DS18B20_SENSOR 1
 #define MAX_TEMPERATURE_SENSOR 15
-
-struct Temperature {
-   bool set;
-   bool override;
-   char sign;
-   uint16_t val;
-   uint16_t fract;
-   uint8_t missed;
-   char address[20];
-};
+// 
+// struct Temperature {
+//    bool set;
+//    bool override;
+//    char sign;
+//    uint16_t val;
+//    uint16_t fract;
+//    uint8_t missed;
+//    char address[20];
+// };
 
 
 #endif

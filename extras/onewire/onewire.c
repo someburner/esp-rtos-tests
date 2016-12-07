@@ -21,7 +21,7 @@ static Temperature latest_temp;
 
 static TaskHandle_t ow_seq_int_task_handle = NULL;
 
-// QueueHandle_t ow_queue_handle;
+static QueueHandle_t * pubTempQueueHandle = NULL;
 
 static void ow_task(void *pxParameter);
 
@@ -518,10 +518,7 @@ static void read_temp_done_cb(void)
       latest_temp.fract = (reading & 0xf) * 100 / 16;
       latest_temp.available = 1; // mark as available
 
-   #ifdef OW_DEBUG_TEMP
-      OW_print_temperature();
-   #endif
-      // OW_publish_temperature();
+      OW_queue_temperature();
    }
    else
    {
@@ -603,12 +600,32 @@ void OW_handle_error(uint8_t cb_type)
    one_driver->ow_state = OW_STATE_READY;
 }
 
-void OW_print_temperature(void)
+void OW_queue_temperature(void)
 {
+   static Temperature prev_temp;
+   static char buf[32];
    if (latest_temp.available)
-      printf("temp = %c%d.%02d deg.C\n", latest_temp.sign, latest_temp.val, latest_temp.fract);
+   {
+      if (memcmp(&prev_temp, &latest_temp, sizeof(Temperature)) != 0)
+      {
+         memcpy(&prev_temp, &latest_temp, sizeof(Temperature));
+      #ifdef OW_DEBUG_TEMP
+         printf("new temp = %c%d.%02d deg.C\n", latest_temp.sign, latest_temp.val, latest_temp.fract);
+      #endif
+         int ret = sprintf(buf, "%c%d.%02d", latest_temp.sign, latest_temp.val, latest_temp.fract);
+
+         char * pubBuf = (char*) malloc(sizeof(char)*7);
+         memcpy(pubBuf, &buf, 6);
+         pubBuf[6] = '\0';
+
+         /* QueueHandle_t	xQueue, const void* pvItemToQueue, TickType_t xTicksToWait */
+         xQueueSendToBack(*pubTempQueueHandle, &pubBuf, (TickType_t)0);
+      }
+   }
    else
+   {
       printf("Temp. data N/A\n");
+   }
 }
 
 void OW_init_seq(uint8_t seq)
@@ -686,8 +703,11 @@ bool OW_request_new_temp(void)
    return true;
 }
 
-void OW_init(void)
+void OW_init(QueueHandle_t * pubTempQueue)
 {
+   if (pubTempQueue)
+      pubTempQueueHandle = pubTempQueue;
+
    /* Init all to 0 */
    memset(one_driver, 0, sizeof(onewire_driver));
    memset(&latest_temp, 0, sizeof(latest_temp));

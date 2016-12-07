@@ -5,7 +5,7 @@
 
 #include <FreeRTOS.h>
 #include <task.h>
-#include <ssid_config.h>
+#include <queue.h>
 
 #include <espressif/esp_sta.h>
 #include <espressif/esp_wifi.h>
@@ -21,22 +21,39 @@
 
 SemaphoreHandle_t wifi_alive;
 QueueHandle_t publish_queue;
-#define PUB_MSG_LEN 16
+#define TEMP_DATA_PUBLEN 7
+#define vTaskDelayMs(ms)	vTaskDelay((ms)/portTICK_PERIOD_MS)
 
-static void  beat_task(void *pvParameters)
+static void  beat_task(void *p)
 {
-    TickType_t xLastWakeTime = xTaskGetTickCount();
-    char msg[PUB_MSG_LEN];
-    int count = 0;
+   QueueHandle_t *tempQueueHandle = (QueueHandle_t *)p;
+   // TickType_t xLastWakeTime = xTaskGetTickCount();
 
-    while (1) {
-        vTaskDelayUntil(&xLastWakeTime, 10000 / portTICK_PERIOD_MS); // == 10 seconds
-        printf("beat\r\n");
-        snprintf(msg, PUB_MSG_LEN, "Beat %d\r\n", count++);
-        if (xQueueSend(publish_queue, (void *)msg, 0) == pdFALSE) {
-            printf("Publish queue overflow.\r\n");
-        }
-    }
+   while (1)
+   {
+      char * msg;
+      if (!(xQueueReceive(*tempQueueHandle, &msg, portMAX_DELAY)))
+      {
+         printf("xqfailrx\n");
+      }
+      else
+      {
+         printf("xQueueReceive %s\n", msg);
+         if (xQueueSend(publish_queue, msg, 0) == pdFALSE)
+            printf("xqfailtx\n");
+         else
+         {
+            printf("xQueueSend ok\n");
+         }
+         free(msg);
+         msg = NULL;
+      }
+
+      taskYIELD();
+
+      // printf("Sent!\r\n");
+      // vTaskDelayMs(553);
+   }
 }
 
 static void  topic_received(mqtt_message_data_t *md)
@@ -54,6 +71,7 @@ static void  topic_received(mqtt_message_data_t *md)
     printf("\r\n");
 }
 
+#if MQTT_0LEN_CLIENT_ID==0
 static const char *  get_my_id(void)
 {
     // Use MAC address for Station as unique ID
@@ -78,6 +96,7 @@ static const char *  get_my_id(void)
     my_id_done = true;
     return my_id;
 }
+#endif
 
 static void  mqtt_task(void *pvParameters)
 {
@@ -144,13 +163,13 @@ static void  mqtt_task(void *pvParameters)
 
       while(1)
       {
-         char msg[PUB_MSG_LEN - 1] = "\0";
+         char msg[TEMP_DATA_PUBLEN - 1] = "\0";
          while (xQueueReceive(publish_queue, (void *)msg, 0) == pdTRUE)
          {
             printf("got message to publish\r\n");
             mqtt_message_t message;
             message.payload = msg;
-            message.payloadlen = PUB_MSG_LEN;
+            message.payloadlen = TEMP_DATA_PUBLEN;
             message.dup = 0;
             message.qos = MQTT_QOS1;
             message.retained = 0;
@@ -175,15 +194,7 @@ static void  mqtt_task(void *pvParameters)
 static void  wifi_task(void *pvParameters)
 {
     uint8_t status  = 0;
-    uint8_t retries = 30;
-    struct sdk_station_config config = {
-        .ssid = WIFI_SSID,
-        .password = WIFI_PASS,
-    };
-
-    printf("WiFi: connecting to WiFi\n\r");
-    sdk_wifi_set_opmode(STATION_MODE);
-    sdk_wifi_station_set_config(&config);
+    uint8_t retries = 10;
 
     while(1)
     {
@@ -219,13 +230,15 @@ static void  wifi_task(void *pvParameters)
     }
 }
 
-void mqtt_app_init(void)
+void mqtt_app_init(QueueHandle_t * pubTempQueue)
 {
    printf("mqtt_app_init\n");
 
    vSemaphoreCreateBinary(wifi_alive);
-   publish_queue = xQueueCreate(3, PUB_MSG_LEN);
+   publish_queue = xQueueCreate(3, TEMP_DATA_PUBLEN);
    xTaskCreate(&wifi_task, "wifi_task",  256, NULL, WIFI_TASK_PRIO, NULL);
-   xTaskCreate(&beat_task, "beat_task", 256, NULL, BEAT_TASK_PRIO, NULL);
+   xTaskCreate(&beat_task, "beat_task", 512, pubTempQueue, BEAT_TASK_PRIO, NULL);
+   // xTaskCreate(&beat_task, "beat_task", 512, pubTempQueue, 7, NULL);
+
    xTaskCreate(&mqtt_task, "mqtt_task", 1024, NULL, MQTT_TASK_PRIO, NULL);
 }
