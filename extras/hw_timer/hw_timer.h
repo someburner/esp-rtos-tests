@@ -14,9 +14,6 @@ typedef enum {
    HW_TIMER_STOPPED = 4
 } HW_TIMER_STATE_T;
 
-void IRAM onewire_lock(void);
-void IRAM onewire_release(void);
-
 HW_TIMER_STATE_T hw_timer_get_state(void);
 
 void hw_timer_init(void);

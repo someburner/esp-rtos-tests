@@ -431,9 +431,7 @@ static void read_uuid_done_cb(void)
       OW_handle_error(DS_SEQ_UUID_T);
       return;
    }
-
-   onewire_release();
-   // hw_timer_stop();
+   hw_timer_stop();
 
    ow_task_arg = DS_SEQ_CONV_T;
 
@@ -475,8 +473,7 @@ static void conv_t_done_cb(void)
       OW_handle_error(DS_SEQ_CONV_T);
       return;
    }
-   onewire_release();
-   // hw_timer_stop();
+   hw_timer_stop();
 
    /* Set next sequence */
    ow_task_arg = DS_SEQ_READ_T;
@@ -494,9 +491,7 @@ static void read_temp_done_cb(void)
       OW_handle_error(DS_SEQ_READ_T);
       return;
    }
-
-   onewire_release();
-   // hw_timer_stop();
+   hw_timer_stop();
 
 #ifdef OW_DEBUG_VALS
    uint8_t i;
@@ -560,14 +555,12 @@ static void OW_init_seq_task(void *pxParameter)
 
             /* UUID is done. Wait a bit then start conversion. */
             case DS_SEQ_CONV_T:
-               onewire_release();
                vTaskDelayMs(15U);
                OW_init_seq(DS_SEQ_CONV_T);
                break;
 
             /* Conversion is done. Wait 750ms then start read. */
             case DS_SEQ_READ_T:
-               onewire_release();
                vTaskDelayMs(750U);
                OW_init_seq(DS_SEQ_READ_T);
                break;
@@ -578,10 +571,8 @@ static void OW_init_seq_task(void *pxParameter)
                one_driver->readbit_count = 0;
                one_driver->readbyte_count = 0;
             #endif
-               // hw_timer_arm(10);
-               // onewire_release();
-
                OW_init_seq(DS_SEQ_CONV_T);
+               // hw_timer_arm(10);
                vTaskDelayMs(2431U);
                break;
 
@@ -603,9 +594,7 @@ static void OW_init_seq_task(void *pxParameter)
 
 void OW_handle_error(uint8_t cb_type)
 {
-   // hw_timer_stop();
-   onewire_release();
-
+   hw_timer_stop();
    printf("OW err #%hd in seq #%hd\n", one_driver->error, cb_type);
    one_driver->error = OW_ERROR_NONE;
    one_driver->ow_state = OW_STATE_READY;
@@ -665,8 +654,9 @@ void OW_init_seq(uint8_t seq)
          one_driver->callback = NULL;
          return;
    }
-   onewire_lock();
-   // hw_timer_start();
+
+   hw_timer_init();
+   hw_timer_start();
 }
 
 bool OW_request_new_temp(void)
@@ -729,8 +719,6 @@ void OW_init(QueueHandle_t * pubTempQueue)
 
    /* Init hw timer */
    hw_timer_init();
-   onewire_lock();
-   hw_timer_start();
 
    xTaskCreate(OW_init_seq_task, "OWInitSeqTask", 1024, NULL, OW_TASK_PRIO, &ow_seq_int_task_handle);
 

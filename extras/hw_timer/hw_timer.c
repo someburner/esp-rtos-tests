@@ -15,7 +15,6 @@
 #include "hw_timer.h"
 
 #define HW_TIMER_DEBUG 0
-#define HW_TIMER_WS2812 1
 #define HW_TIMER_AUTOLOAD 0
 
 /* Uncoment to use clock div16 */
@@ -37,8 +36,10 @@
  * arming/disarming/changing callbacks. Otherwise we'd crash most likely.     */
 static HW_TIMER_STATE_T hw_timer_state = HW_TIMER_DISABLED;
 
-static int next_call = DOIT_WS2812;
+// static int next_call = DOIT_WS2812;
+static int next_call = DOIT_ONEWIRE;
 
+static uint32_t testcout = 0;
 static uint32_t loadval = 0;
 
 typedef enum {
@@ -102,17 +103,6 @@ static void IRAM frc1_interrupt_handler(void)
 HW_TIMER_STATE_T hw_timer_get_state(void)
 {
    return hw_timer_state;
-}
-
-
-void IRAM onewire_lock(void)
-{
-   next_call = DOIT_ONEWIRE;
-}
-
-void IRAM onewire_release(void)
-{
-   next_call = DOIT_WS2812;
 }
 
 void hw_timer_init(void)

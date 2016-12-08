@@ -84,7 +84,6 @@ float patterns [] [3] = {
  * |  On/Off | Min | Typ | Max  |
  * |  1-bit  | 200 | 350 | 500  |
  * |  0-bit  | 650 | 800 | 5000 |
-
  * | HIGH-ORDER (1-code)        |
  * |:--------------------------:|
  * |  On/Off | Min | Typ | Max  |
@@ -92,7 +91,6 @@ float patterns [] [3] = {
  * |  0-bit  | 450 | 600 | 5500 |
  *
  * ---> LATCH TIME: > 6000ns <---
-
 40MHz Computation:                                                         *
  * -------------------------------------------------------------------------- *
  * 25ns per clock period                                                      *
@@ -103,7 +101,6 @@ float patterns [] [3] = {
  *    -> Which means dout = b11111111 00000000 0000000000000000 = 0xFF000000   *
  *    -> Which means dout = 111111 0000000000000000  = 0x003FC0000   *
  * 111111
-
  18
  11111111 11111111 11
  0xFFFFC0
@@ -114,7 +111,6 @@ float patterns [] [3] = {
  *    -> do 12x0-bit = 6x50ns = 900ns                                        *
  *    -> Which means dout = b 11111111111111 000000000000000000 = 0x7FFF0000   *
  *       and total bits to write is 14+12 = 26 bits                           *
-
  * Typical 700/350ns 1/0-bit
  * do 4x0-bit = 400ns
  * do 7x1-bit = 700ns
@@ -122,7 +118,6 @@ float patterns [] [3] = {
  * Typical 600/350ns 1/0-bit
  * do 8x1-bit = 400ns
  * do 7x0-bit = 700ns
-
  *
 */
 void IRAM ws2812_sendByte(uint8_t b)
@@ -176,9 +171,9 @@ void ws2812_showColor(uint16_t count, uint8_t r , uint8_t g , uint8_t b)
 
 void ws2812_showit_fade(void)
 {
-   // static uint32_t intr_restore;
+   static uint32_t intr_restore;
    sdk_os_delay_us(1);
-   // intr_restore = _xt_disable_interrupts();
+   intr_restore = _xt_disable_interrupts();
    if (ws->cur_pixel < PIXEL_COUNT)
    {
       // _xt_isr_mask( (1<<INUM_TIMER_FRC1) | (1<<INUM_TICK) | (1<<INUM_SOFT) | (1<<INUM_TIMER_FRC2)  );
@@ -188,7 +183,7 @@ void ws2812_showit_fade(void)
    } else {
       ws->cur_pixel = 0;
    }
-   // _xt_restore_interrupts(intr_restore);
+   _xt_restore_interrupts(intr_restore);
    sdk_os_delay_us(1);
 }
 
@@ -300,9 +295,6 @@ void animTask(void *p)
 {
    while(1)
    {
-      vTaskDelayMs(23);
-      taskYIELD();
-
       int anim = ws->cur_anim;
       if (ws->state == WS_STATE_DOIT_ACTIVE)
       {
@@ -317,6 +309,7 @@ void animTask(void *p)
          }
       }
       // vTaskDelayMs(MS_DIV_PER_CB(fade->period, 255));
+      vTaskDelayMs(15);
    }
 }
 
@@ -349,7 +342,7 @@ bool ws2812_init(void)
 
    // driver_event_register_ws(ws);
 
-   xTaskCreate(&animTask, "animTask", 1024, NULL, WS_FADE_TASK_PRIO, NULL);
+   xTaskCreate(&animTask, "animTask", 1024, NULL, 0, NULL);
 
    return true;
 }
