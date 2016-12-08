@@ -50,8 +50,6 @@ static ws2812_driver_t * ws = &ws_driver;
 static ws2812_fade_inout_t fade_st;
 static ws2812_fade_inout_t * fade = &fade_st;
 
-// os_timer_t ws2812_timer;
-
 // float patterns [] [3] = {
 //   { 0.5, 0, 0 },  // red
 //   { 0, 0.5, 0 },  // green
@@ -68,7 +66,7 @@ static ws2812_fade_inout_t * fade = &fade_st;
   // { 92.0 / 512, 278.0 / 512, 87.0 / 174 },  // sea green
 
 float patterns [] [3] = {
-  { 1, 0, 0 },  // red
+  { 0.5, 0, 0 },  // red
   { 0, 1, 0 },  // green
   { 0, 0, 1 },  // blue
   { 1, 1, 0 },  // yellow
@@ -79,23 +77,55 @@ float patterns [] [3] = {
   { 46.0 / 256, 139.0 / 256, 87.0 / 256 },  // sea green
 };
 
-/* 40MHz Computation:                                                         *
+/*
+ * t_HIGH + T_LOW =1.25µs±150n
+ * | LOW-ORDER (0-code)         |
+ * |:--------------------------:|
+ * |  On/Off | Min | Typ | Max  |
+ * |  1-bit  | 200 | 350 | 500  |
+ * |  0-bit  | 650 | 800 | 5000 |
+
+ * | HIGH-ORDER (1-code)        |
+ * |:--------------------------:|
+ * |  On/Off | Min | Typ | Max  |
+ * |  1-bit  | 550 | 700 | 5500 |
+ * |  0-bit  | 450 | 600 | 5500 |
+ *
+ * ---> LATCH TIME: > 6000ns <---
+
+40MHz Computation:                                                         *
  * -------------------------------------------------------------------------- *
  * 25ns per clock period                                                      *
  * 2*25 = 50ns per spi bit                                                    *
- * So for a zero-bit to have a 350ns pulse-width:                             *
- *    -> do 7x1-bit = 7x50ns = 350ns                                          *
- *    -> do 16x0-bit = 16x50ns = 800ns                                        *
- *    -> Which means dout = b1111111 0000000000000000 = 0x3FFF000             *
- *       and total bits to write is 16+7 = 23                                 *
+ * So for a zero-bit to have ~350ns pulse-width:                              *
+ *    -> do 6x1-bit = 6x50ns = 300ns                                          *
+ *    -> do 18x0-bit = 18x50ns = 900ns                                       *
+ *    -> Which means dout = b11111111 00000000 0000000000000000 = 0xFF000000   *
+ *    -> Which means dout = 111111 0000000000000000  = 0x003FC0000   *
+ * 111111
+
+ 18
+ 11111111 11111111 11
+ 0xFFFFC0
+ *       and total bits to write is 8+24 = 24                                 *
  *                                                                            *
- * So for a one-bit to have a 700ns pulse-width:                              *
- *    -> do 14x1-bit = 14x50ns = 700ns                                        *
- *    -> do 12x0-bit = 12x50ns = 600ns                                        *
- *    -> Which means dout = b 11111111111111 000000000000 = 0x3FFF000         *
+ * So for a one-bit to have ~700ns pulse-width:                               *
+ *    -> do 14x1-bit = 15x50ns = 700ns                                        *
+ *    -> do 12x0-bit = 6x50ns = 900ns                                        *
+ *    -> Which means dout = b 11111111111111 000000000000000000 = 0x7FFF0000   *
  *       and total bits to write is 14+12 = 26 bits                           *
+
+ * Typical 700/350ns 1/0-bit
+ * do 4x0-bit = 400ns
+ * do 7x1-bit = 700ns
+ * ---- LOW-ORDER ---
+ * Typical 600/350ns 1/0-bit
+ * do 8x1-bit = 400ns
+ * do 7x0-bit = 700ns
+
+ *
 */
-void  ws2812_sendByte(uint8_t b)
+void IRAM ws2812_sendByte(uint8_t b)
 {
    static uint8_t bit;
    static uint32_t out;
@@ -103,23 +133,24 @@ void  ws2812_sendByte(uint8_t b)
    {
       if (b & 0x80) // is high-order bit set?
       {
-         out = 0x3FFF000;
-         spi_transaction(HSPIBUS,0, 0, 0, 0, 26,  out, 0, NULL, 0);
-     // spi_transaction spi_no,  cmd_bits, cmd_data, addr_bits, addr_data, dout_bits, dout_data, din, din, dummy
-     // spi_transaction(SPI_DEV,      0,      0,          0,       0,       26,    out,        0,  NULL,  0);
+         //8, c, e
+         out = 0xFFFFc0;
+         spi_transaction(24,  out, 0);
       }
       else
       {
-         out = 0x7F0000;
-         spi_transaction(HSPIBUS, 0, 0, 0, 0, 23, out, 0, NULL, 0);
+         /* 23/0x007F0000 - 350/800ns 1/0bit */
+         /* 22/0x003F8000 - 350/800ns 1/0bit */
+         out = 0xFE000000;
+         spi_transaction(32,  out, 0);
       }
       b <<= 1; // shift next bit into high-order position
-      sdk_os_delay_us(1); // seems to be more stable if this is added.
    }
 }
 
 // Display a single color on the whole string
-void ws2812_sendPixels()
+// void IRAM ws2812_sendPixels()
+void  ws2812_sendPixels()
 {
     // NeoPixel wants colors in green-then-red-then-blue order
    ws2812_sendByte(ws->g);
@@ -138,34 +169,36 @@ void ws2812_sendPixel_params(uint8_t r, uint8_t g, uint8_t b)
 void ws2812_showColor(uint16_t count, uint8_t r , uint8_t g , uint8_t b)
 {
    uint16_t pixel;
-   // ets_intr_lock(); /* These seem to be OK */
    for (pixel = 0; pixel < count; pixel++)
       ws2812_sendPixel_params(r, g, b);
-   // ets_intr_unlock(); /* These seem to be OK */
    ws2812_show();  // latch the colors
 }
 
 void ws2812_showit_fade(void)
 {
+   static uint32_t intr_restore;
+   sdk_os_delay_us(1);
+   intr_restore = _xt_disable_interrupts();
    if (ws->cur_pixel < PIXEL_COUNT)
    {
+      // _xt_isr_mask( (1<<INUM_TIMER_FRC1) | (1<<INUM_TICK) | (1<<INUM_SOFT) | (1<<INUM_TIMER_FRC2)  );
       ws2812_sendPixels();
       ws->cur_pixel++;
+      // _xt_isr_unmask( (1<<INUM_TIMER_FRC1) | (1<<INUM_TICK) | (1<<INUM_SOFT) | (1<<INUM_TIMER_FRC2) );
    } else {
       ws->cur_pixel = 0;
    }
+   _xt_restore_interrupts(intr_restore);
+   sdk_os_delay_us(1);
 }
 
 /* Called from Driver_Event_Task */
 void  ws2812_doit(void)
 {
-   ws2812_showit_fade();
-
-   // if (ws->state == WS_STATE_DOIT_ACTIVE)
-   // {
-   //    ws2812_showit_fade();
-   //    // hw_timer_start();
-   // }
+   if (ws->state == WS_STATE_DOIT_ACTIVE)
+   {
+      ws2812_showit_fade();
+   }
 }
 
 /* Callback specifically for fade animation */
@@ -178,7 +211,7 @@ void ws2812_fade_cb(void)
 
    if ( ( fade->in_out) && ( fade->cur_m >= 255 ) )
    {
-      printf("ws->r=%hhd\n", ws->r);
+      // printf("ws->r=%hhd\n", ws->r);
       fade->in_out = false;
    }
 
@@ -194,32 +227,12 @@ void ws2812_fade_cb(void)
    ws->g = patterns[fade->cur_pattern][1] * fade->cur_m;
    ws->b = patterns[fade->cur_pattern][2] * fade->cur_m;
    // UPDATE_BRIGHTNESS();
-   // ws2812_doit();
 
    if (fade->in_out)
       fade->cur_m++;
    else
       fade->cur_m--;
 }
-
-#if 0
-/* Timer callback every 10ms for updating colors. */
-static void ws2812_timer_cb(void* arg)
-{
-   uint32_t anim_type = *(uint32_t *)arg;
-
-   switch (anim_type)
-   {
-      case WS2812_ANIM_FADE_INOUT:
-      {
-         ws2812_fade_cb();
-      } break;
-
-   }
-
-}
-#endif
-
 
 /* Initialize/start a preset animation */
 void ws2812_anim_init(uint8_t anim_type)
@@ -234,8 +247,8 @@ void ws2812_anim_init(uint8_t anim_type)
          ws->cur_anim = WS2812_ANIM_FADE_INOUT;
          fade->cur_m = 0;
          fade->cur_pattern = 0;
-         fade->in_out = true;
-         fade->period = 5.0; // seconds
+         fade->in_out = false;
+         fade->period = 1.0; // seconds
          ws->state = WS_STATE_DOIT_LOADED;
          printf("fade inout anim init\n");
       } break;
@@ -271,8 +284,7 @@ void ws2812_anim_stop(void)
 /* Used for init only since hw_timer delay is 10us, so about the same. */
 void ws2812_show(void)
 {
-   sdk_os_delay_us(9);
-   // sdk_os_delay_us(1);
+   sdk_os_delay_us(6);
 }
 
 void ws2812_clear(void)
@@ -281,20 +293,13 @@ void ws2812_clear(void)
    ws->r = 0;
    ws->g = 0;
    ws->b = 0;
-
-   ws2812_show(); // in case MOSI went high, latch in whatever-we-sent
    ws2812_sendPixels();
-   ws2812_show();
 }
 
 void animTask(void *p)
 {
    while(1)
    {
-      static int test = 0;
-      if (test%100 == 0)
-         printf(".");
-
       int anim = ws->cur_anim;
       if (ws->state == WS_STATE_DOIT_ACTIVE)
       {
@@ -303,7 +308,6 @@ void animTask(void *p)
             case WS2812_ANIM_FADE_INOUT:
             {
                ws2812_fade_cb();
-               test++;
             } break;
 
             //ws2812_showColor (PIXELS, 0xB2, 0x22, 0x22);  // firebrick
@@ -317,11 +321,11 @@ void animTask(void *p)
 bool ws2812_spi_init(void)
 {
    spi_init_gpio(HSPIBUS, SPI_CLK_USE_DIV);
-   spi_clock(HSPIBUS, 2, 2); // prediv==2==40mhz, postdiv==1==40mhz
+   spi_clock(HSPIBUS, 2, 2); // prediv==2==40mhz, postdiv==2==20mhz
    spi_tx_byte_order(HSPIBUS, SPI_BYTE_ORDER_HIGH_TO_LOW);
    spi_rx_byte_order(HSPIBUS, SPI_BYTE_ORDER_HIGH_TO_LOW);
 
-   /* Mode 1: CPOL=0, CPHA=1 */
+   /* Mode 0: CPOL=0, CPHA=0 */
    /* uint8 spi_no, uint8 spi_cpha,uint8 spi_cpol */
    spi_mode(HSPIBUS, 0, 0);
 
@@ -343,7 +347,7 @@ bool ws2812_init(void)
 
    // driver_event_register_ws(ws);
 
-   xTaskCreate(&animTask, "animTask", 1024, NULL, 7, NULL);
+   xTaskCreate(&animTask, "animTask", 1024, NULL, 0, NULL);
 
    return true;
 }

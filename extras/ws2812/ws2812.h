@@ -60,11 +60,12 @@ typedef struct
 
 } ws2812_driver_t;
 
+void IRAM ws2812_sendByte(uint8_t b);
+// void IRAM ws2812_sendPixels(void);
+void  ws2812_sendPixels(void);
 
 void ws2812_fade_cb(void);
-void  ws2812_sendByte(uint8_t b);
 void ws2812_sendPixel_params(uint8_t r, uint8_t g, uint8_t b);
-void ws2812_sendPixels(void);
 void ws2812_showColor(uint16_t count, uint8_t r , uint8_t g , uint8_t b);
 
 #if 0

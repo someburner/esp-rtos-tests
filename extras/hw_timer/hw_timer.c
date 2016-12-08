@@ -14,11 +14,15 @@
 #include "onewire.h"
 #include "hw_timer.h"
 
-#define HW_TIMER_DEBUG 1
+#define HW_TIMER_DEBUG 0
 #define HW_TIMER_WS2812 1
+#define HW_TIMER_AUTOLOAD 0
 
-// #define CLK_DIV TIMER_CLKDIV_1
-#define CLK_DIV TIMER_CLKDIV_16
+/* Uncoment to use clock div16 */
+#define CLK_DIV_SET_1
+
+#define DIV1_LOADVAL  700
+#define DIV16_LOADVAL 44
 
 /* Espressif-provided macro to get ticks from us */
 #define US_TO_RTC_TIMER_TICKS(t)    \
@@ -69,21 +73,20 @@ static ow_hw_t ow_hw;
 
 static void IRAM frc1_interrupt_handler(void)
 {
-#if HW_TIMER_DEBUG==1
-   testcout++;
-#endif
-
-#if HW_TIMER_WS2812
-   #if CLK_DIV==TIMER_CLKDIV_16
-   timer_set_load(FRC1, 44);
+#ifndef CLK_DIV_SET_1
+   #if HW_TIMER_WS2812
+      ws2812_doit();
    #else
-   timer_set_load(FRC1, 700);
+      OW_doit();
    #endif
-
-   ws2812_doit();
-
+   timer_set_load(FRC1, DIV16_LOADVAL);
 #else
-   OW_doit();
+   timer_set_load(FRC1, DIV1_LOADVAL);
+   #if HW_TIMER_WS2812
+      ws2812_doit();
+   #else
+      OW_doit();
+   #endif
 #endif
 }
 
@@ -132,24 +135,27 @@ void hw_timer_restart(void)
 void hw_timer_start(void)
 {
    if (hw_timer_state == HW_TIMER_ACTIVE ) return;
-#if CLK_DIV==TIMER_CLKDIV_1
-   // loadval = timer_time_to_count(FRC1, 10, TIMER_CLKDIV_1);
-   loadval = 700; // closest to every 10us for div1
-#endif
-#if CLK_DIV==TIMER_CLKDIV_16
-   // loadval = timer_time_to_count(FRC1, 20, TIMER_CLKDIV_16);
-   loadval = 44; // closest to every 10us for div16
+
+#if HW_TIMER_AUTOLOAD!=0
+   loadval = timer_time_to_count(FRC1, 20, TIMER_CLKDIV_16);
+   // loadval = US_TO_RTC_TIMER_TICKS(10UL);
+#else
+   #ifndef CLK_DIV_SET_1
+   loadval = DIV16_LOADVAL;
+   timer_set_divider(FRC1, TIMER_CLKDIV_16);
+   #else
+   loadval = DIV1_LOADVAL;
+   timer_set_divider(FRC1, TIMER_CLKDIV_1);
+   #endif
 #endif
 
-   // loadval = US_TO_RTC_TIMER_TICKS(10UL);
 #if HW_TIMER_DEBUG==1
    printf("loadval = %u\n", loadval);
 #endif
 
-   timer_set_divider(FRC1, CLK_DIV);
 
-   // timer_set_reload(FRC1, true);
-   timer_set_reload(FRC1, false);
+
+   timer_set_reload(FRC1, (bool)HW_TIMER_AUTOLOAD);
    timer_set_interrupts(FRC1, true);
 
    timer_set_load(FRC1, loadval);

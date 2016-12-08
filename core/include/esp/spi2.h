@@ -124,13 +124,15 @@ void spi_mode(uint8_t spi_no, uint8_t spi_cpha,uint8_t spi_cpol);
  * Note: all data is assumed to be stored in the lower bits of the data
  * variables (for anything <32 bits).
 *******************************************************************************/
-// uint32 ICACHE_RAM_ATTR spi_transaction(uint8_t spi_no, uint32 addr_bits, uint32 addr_data, uint32 dout_bits, uint32 dout_data, uint32 din_bits, uint32 dummy_bits);
-// uint32 ICACHE_RAM_ATTR spi_transaction(uint8_t spi_no, uint8_t cmd_bits, uint16_t cmd_data, uint32 addr_bits, uint32 addr_data, uint32 dout_bits, uint32 dout_data,uint32 din_bits, uint32 dummy_bits);
+
+void IRAM spi_transaction(uint32_t dout_bits, uint32_t dout_data, uint8_t dummy_bits);
+#if 0
 bool IRAM spi_transaction(uint8_t spi_no,
    uint8_t cmd_bits, uint16_t cmd_data, uint32_t addr_bits, uint32_t addr_data,
    uint32_t dout_bits, uint32_t dout_data, uint32_t din_bits, uint32_t * din_data,
    uint32_t dummy_bits
 );
+#endif
 
 
 //Expansion Macros

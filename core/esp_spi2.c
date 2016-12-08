@@ -1,10 +1,10 @@
-/*
- * ESP hardware SPI master driver
- *
- * Part of esp-open-rtos
- * Copyright (c) Ruslan V. Uss, 2016
- * BSD Licensed as described in the file LICENSE
- */
+/*                                                                            *
+ * ESP8266 hardware SPI master driver.                                        *
+ *                                                                            *
+ * Original driver: https://github.com/MetalPhreak/ESP8266_SPI_Driver         *
+ * Modified by Jeff Hufford to drive a WS2812 using the MOSI pin.             *
+ *                                                                            */
+
 #include "esp/spi2.h"
 #include "esp/spi_regs2.h"
 #include "eagle_soc.h"
@@ -13,37 +13,11 @@
 #include "esp/gpio.h"
 #include <string.h>
 
-#define _SPI0_SCK_GPIO  6
-#define _SPI0_MISO_GPIO 7
-#define _SPI0_MOSI_GPIO 8
-#define _SPI0_HD_GPIO   9
-#define _SPI0_WP_GPIO   10
-#define _SPI0_CS0_GPIO  11
+#define HARD_SPINUM 1
 
-#define _SPI1_MISO_GPIO 12
-#define _SPI1_MOSI_GPIO 13
-#define _SPI1_SCK_GPIO  14
-#define _SPI1_CS0_GPIO  15
-
-#define _SPI0_FUNC IOMUX_FUNC(1)
-#define _SPI1_FUNC IOMUX_FUNC(2)
-
-#define _SPI_BUF_SIZE 32
-#define __min(a,b) ((a > b) ? (b):(a))
-
-void spi_init(uint8_t spi_no)
-{
-	if(spi_no > 1)
-      return;
-
-   spi_init_gpio(spi_no, SPI_CLK_USE_DIV);
-   spi_clock(spi_no, SPI_CLK_PREDIV, SPI_CLK_CNTDIV);
-   // spi_tx_byte_order(spi_no, SPI_BYTE_ORDER_HIGH_TO_LOW);
-   // spi_rx_byte_order(spi_no, SPI_BYTE_ORDER_HIGH_TO_LOW);
-   //
-   // SET_PERI_REG_MASK(SPI_USER(spi_no), SPI_CS_SETUP|SPI_CS_HOLD);
-   // CLEAR_PERI_REG_MASK(SPI_USER(spi_no), SPI_FLASH_MODE);
-}
+#define ZERO_ADDR_BITS 0
+#define ZERO_DIN_BITS 0
+#define ZERO_DUMMY_BITS 0
 
 void spi_init_gpio(uint8_t spi_no, uint8_t sysclk_as_spiclk)
 {
@@ -87,7 +61,7 @@ void spi_clock(uint8_t spi_no, uint16_t prediv, uint8_t cntdiv)
          ( ((prediv-1)&SPI_CLKDIV_PRE)<<SPI_CLKDIV_PRE_S ) |
          ( ((cntdiv-1)&SPI_CLKCNT_N)<<SPI_CLKCNT_N_S )     |
          ( ( (cntdiv>>1)&SPI_CLKCNT_H )<<SPI_CLKCNT_H_S )  |
-         ( ( 0&SPI_CLKCNT_L )<<SPI_CLKCNT_L_S )
+         ( ( (cntdiv>>1)&SPI_CLKCNT_L )<<SPI_CLKCNT_L_S )
       );
    }
 }
@@ -130,7 +104,7 @@ void spi_rx_byte_order(uint8_t spi_no, uint8_t byte_order)
  *    3: CPOL=1, CPHA=0 */
 void spi_mode(uint8_t spi_no, uint8_t spi_cpha, uint8_t spi_cpol)
 {
-   if (spi_cpha)
+   if (!spi_cpha == !spi_cpol)
    {
       CLEAR_PERI_REG_MASK(SPI_USER(spi_no), SPI_CK_OUT_EDGE);
    }
@@ -149,6 +123,73 @@ void spi_mode(uint8_t spi_no, uint8_t spi_cpha, uint8_t spi_cpol)
    }
 }
 
+void IRAM spi_transaction(uint32_t dout_bits, uint32_t dout_data, uint8_t dummy_bits)
+{
+   /* code for custom Chip Select as GPIO PIN here */
+   while ( spi_busy(HARD_SPINUM) ); //wait for SPI to be ready
+
+   /* Enable SPI Functions */
+   //disable MOSI, MISO, ADDR, COMMAND, DUMMY in case previously set.
+   CLEAR_PERI_REG_MASK(SPI_USER(HARD_SPINUM), SPI_USR_MOSI|SPI_USR_MISO|SPI_USR_COMMAND|SPI_USR_ADDR|SPI_USR_DUMMY);
+
+   /* Setup Bitlengths */
+   WRITE_PERI_REG(SPI_USER1(HARD_SPINUM),
+      ( ((ZERO_ADDR_BITS-1) & SPI_USR_ADDR_BITLEN ) << SPI_USR_ADDR_BITLEN_S) | //Number of bits in Address
+      ( ((dout_bits-1) & SPI_USR_MOSI_BITLEN ) << SPI_USR_MOSI_BITLEN_S) | //Number of bits to Send
+      ( ((ZERO_DIN_BITS-1)  & SPI_USR_MISO_BITLEN ) << SPI_USR_MISO_BITLEN_S) |  //Number of bits to receive
+      ( ((dummy_bits-1) & SPI_USR_DUMMY_CYCLELEN ) << SPI_USR_DUMMY_CYCLELEN_S)  //Number of Dummy bits to insert
+   );
+
+   if (dummy_bits)
+      SET_PERI_REG_MASK(SPI_USER(HARD_SPINUM), SPI_USR_DUMMY);
+
+   // SET_PERI_REG_MASK(SPI_USER(HARD_SPINUM), ~(SPI_USR_ADDR));
+   // SET_PERI_REG_MASK(SPI_USER(HARD_SPINUM), ~(SPI_USR_COMMAND));
+   // SET_PERI_REG_MASK(SPI_USER(HARD_SPINUM), ~(SPI_USR_MISO));
+
+   /* Setup DOUT data */
+   if (dout_bits)
+   {
+      /* enable MOSI function in SPI module */
+      SET_PERI_REG_MASK(SPI_USER(HARD_SPINUM), SPI_USR_MOSI);
+
+      /* copy data to W0 */
+      if ( READ_PERI_REG(SPI_USER(HARD_SPINUM)) & SPI_WR_BYTE_ORDER )
+      {
+         WRITE_PERI_REG(SPI_W0(HARD_SPINUM), dout_data<<(32-dout_bits));
+      }
+      else
+      {
+         uint8_t dout_extra_bits = dout_bits%8;
+
+        /* If your data isn't a byte multiple (8/16/24/32 bits)and you don't  *
+         * have SPI_WR_BYTE_ORDER set, you need this to move the non-8bit     *
+         * remainder to the MSBs. Not sure if there's even a use case for     *
+         * this, but it's here if you need it.                                *
+         * For example, 0xDA4 12 bits without SPI_WR_BYTE_ORDER would usually *
+         * be output as if it were 0x0DA4, of which 0xA4, and then 0x0 would  *
+         * be shifted out (first 8 bits of low byte, then 4 MSB bits of high  *
+         * byte - ie reverse byte order). The code below shifts it out as     *
+         * 0xA4 followed by 0xD as you might require.                         */
+         if (dout_extra_bits)
+         {
+            WRITE_PERI_REG(SPI_W0(HARD_SPINUM), (
+               ( (0xFFFFFFFF<<(dout_bits - dout_extra_bits)&dout_data)<<(8-dout_extra_bits)) |
+               ( (0xFFFFFFFF>>(32-(dout_bits - dout_extra_bits)))&dout_data) )
+            );
+         }
+         else
+         {
+            WRITE_PERI_REG(SPI_W0(HARD_SPINUM), dout_data);
+         }
+      }
+   }
+
+   /* Begin SPI Transaction */
+   SET_PERI_REG_MASK(SPI_CMD(HARD_SPINUM), SPI_USR);
+}
+
+#if 0
 bool IRAM spi_transaction(  uint8_t spi_no,
                                        uint8_t cmd_bits, uint16_t cmd_data,
                                        uint32_t addr_bits, uint32_t addr_data,
@@ -197,7 +238,8 @@ bool IRAM spi_transaction(  uint8_t spi_no,
 
       WRITE_PERI_REG(SPI_USER2(spi_no), (
          ( ((cmd_bits-1) & SPI_USR_COMMAND_BITLEN)<<SPI_USR_COMMAND_BITLEN_S ) |
-         command & SPI_USR_COMMAND_VALUE )
+         (command & SPI_USR_COMMAND_VALUE )
+         )
       );
    }
 
@@ -238,8 +280,8 @@ bool IRAM spi_transaction(  uint8_t spi_no,
          if (dout_extra_bits)
          {
             WRITE_PERI_REG(SPI_W0(spi_no), (
-               (0xFFFFFFFF<<(dout_bits - dout_extra_bits)&dout_data)<<(8-dout_extra_bits) |
-               (0xFFFFFFFF>>(32-(dout_bits - dout_extra_bits)))&dout_data)
+               ( (0xFFFFFFFF<<(dout_bits - dout_extra_bits)&dout_data)<<(8-dout_extra_bits)) |
+               ( (0xFFFFFFFF>>(32-(dout_bits - dout_extra_bits)))&dout_data) )
             );
          }
          else
@@ -255,7 +297,7 @@ bool IRAM spi_transaction(  uint8_t spi_no,
    /* Return DIN data */
    if (din_bits)
    {
-      char idx = 0;
+      uint8_t idx = 0;
       /* Wait for SPI transaction to complete */
       while ( spi_busy(spi_no) );
 
@@ -278,3 +320,4 @@ bool IRAM spi_transaction(  uint8_t spi_no,
    /* Transaction completed. Return success. */
    return true;
 }
+#endif
