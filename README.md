@@ -27,6 +27,9 @@ make -j4 -C examples/cpe439
 make flash -j4 -C examples/cpe439 ESPPORT=/dev/node_mcu
 make -j4 -C examples/cpe439 clean
 
+make -j4 -C examples/ws2812_test
+make flash -C examples/ws2812_test ESPPORT=/dev/node_mcu
+
 make -j4 -C examples/mqtt_client
 make flash -j4 -C examples/mqtt_client ESPPORT=/dev/node_mcu
 

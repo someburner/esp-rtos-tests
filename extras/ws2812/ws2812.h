@@ -25,6 +25,13 @@
 #define WS2812_ANIM_COLOR_ONLY 2
 #define WS2812_ANIM_MAX        3
 
+typedef enum {
+   WS_STATE_INVALID = 0,
+   WS_STATE_DOIT_LOADED,
+   WS_STATE_DOIT_STOPPED,
+   WS_STATE_DOIT_ACTIVE
+} WS_STATE_T;
+
 typedef void (*ws2812_cb_t)(void);
 
 typedef struct
@@ -47,12 +54,15 @@ typedef struct
    uint16_t cur_anim;
 
    // os_timer_t timer;
+   uint32_t state;
+
    uint32_t timer_arg;
 
 } ws2812_driver_t;
 
 
-void IRAM ws2812_sendByte(uint8_t b);
+void ws2812_fade_cb(void);
+void  ws2812_sendByte(uint8_t b);
 void ws2812_sendPixel_params(uint8_t r, uint8_t g, uint8_t b);
 void ws2812_sendPixels(void);
 void ws2812_showColor(uint16_t count, uint8_t r , uint8_t g , uint8_t b);

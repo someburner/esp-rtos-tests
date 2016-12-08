@@ -9,12 +9,12 @@
 #include <espressif/sdk_private.h>
 #include <FreeRTOS.h>
 #include <esp8266.h>
-#include "hw_timer.h"
 
 #include "ws2812.h"
 #include "onewire.h"
+#include "hw_timer.h"
 
-#define HW_TIMER_DEBUG 0
+#define HW_TIMER_DEBUG 1
 #define HW_TIMER_WS2812 1
 
 // #define CLK_DIV TIMER_CLKDIV_1
@@ -74,7 +74,14 @@ static void IRAM frc1_interrupt_handler(void)
 #endif
 
 #if HW_TIMER_WS2812
+   #if CLK_DIV==TIMER_CLKDIV_16
+   timer_set_load(FRC1, 44);
+   #else
+   timer_set_load(FRC1, 700);
+   #endif
+
    ws2812_doit();
+
 #else
    OW_doit();
 #endif
@@ -102,7 +109,7 @@ void hw_timer_init(void)
     ow_hw._step = OW_HW_OFF;
 
     /* Stop timers and mask interrupts */
-    hw_timer_stop();
+   //  hw_timer_stop();
 
     /* set up ISRs */
     _xt_isr_attach(INUM_TIMER_FRC1, frc1_interrupt_handler);
@@ -124,13 +131,14 @@ void hw_timer_restart(void)
 
 void hw_timer_start(void)
 {
+   if (hw_timer_state == HW_TIMER_ACTIVE ) return;
 #if CLK_DIV==TIMER_CLKDIV_1
    // loadval = timer_time_to_count(FRC1, 10, TIMER_CLKDIV_1);
    loadval = 700; // closest to every 10us for div1
 #endif
 #if CLK_DIV==TIMER_CLKDIV_16
-   loadval = timer_time_to_count(FRC1, 10, TIMER_CLKDIV_16);
-   // loadval = 44; // closest to every 10us for div16
+   // loadval = timer_time_to_count(FRC1, 20, TIMER_CLKDIV_16);
+   loadval = 44; // closest to every 10us for div16
 #endif
 
    // loadval = US_TO_RTC_TIMER_TICKS(10UL);
@@ -140,7 +148,8 @@ void hw_timer_start(void)
 
    timer_set_divider(FRC1, CLK_DIV);
 
-   timer_set_reload(FRC1, true);
+   // timer_set_reload(FRC1, true);
+   timer_set_reload(FRC1, false);
    timer_set_interrupts(FRC1, true);
 
    timer_set_load(FRC1, loadval);
@@ -156,4 +165,7 @@ void hw_timer_stop(void)
     ow_hw.running = 0;
 
     ow_hw.running = HW_TIMER_STOPPED;
+#if HW_TIMER_DEBUG==1
+    printf("hw timer stopped\n");
+#endif
 }

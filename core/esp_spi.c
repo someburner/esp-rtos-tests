@@ -214,22 +214,6 @@ uint16_t spi_transfer_16(uint8_t bus, uint16_t data)
     return res;
 }
 
-void spi_transfer_23(uint8_t bus, uint32_t data)
-{
-    uint32_t res;
-    data <<= 9;
-    _spi_buf_transfer(bus, &data, &res, 1, spi_get_endianness(bus), SPI_32BIT);
-   //  return res;
-}
-
-void spi_transfer_26(uint8_t bus, uint32_t data)
-{
-    uint32_t res;
-    data <<= 6;
-    _spi_buf_transfer(bus, &data, &res, 1, spi_get_endianness(bus), SPI_32BIT);
-   //  return res;
-}
-
 uint32_t spi_transfer_32(uint8_t bus, uint32_t data)
 {
     uint32_t res;

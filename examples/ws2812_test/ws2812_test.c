@@ -12,6 +12,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "esp/uart.h" // uart_set_baud
+#include "esp/spi2.h"
 #include <stdio.h> // printf
 #include <stdint.h>
 
@@ -28,8 +29,8 @@ void colorLock(void *pvParameters)
 {
    while(1)
    {
-      vTaskDelayMs(1); // Print every second
-      ws2812_showColor (PIXELS, 0xB2, 0x22, 0x22);  // firebrick
+      vTaskDelayMs(15); // Print every second
+      // ws2812_showColor (PIXELS, 0xB2, 0x22, 0x22);  // firebrick
    }
 }
 
@@ -43,14 +44,21 @@ void user_init(void)
    printf("Clock Freq = %huMHz\n", clock_freq);
 
    // Configure the GPIO
-   gpio_enable(ws_pin, GPIO_OUTPUT);
+   // gpio_enable(ws_pin, GPIO_OUTPUT);
 
    if (ws2812_init())
    {
       printf("ws2812_init ok\n");
    }
 
-    xTaskCreate(&colorLock, "colorLock", 256, NULL, 7, NULL);
+    /* Init hw timer */
+    // hw_timer_init();
+
+    ws2812_anim_init(WS2812_ANIM_FADE_INOUT);
+    // hw_timer_start();
+
+    xTaskCreate(&colorLock, "colorLock", 256, NULL, 1, NULL);
+
 }
 
 

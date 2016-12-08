@@ -254,10 +254,6 @@ uint16_t spi_transfer_16(uint8_t bus, uint16_t data);
  * \param data dword to send
  * \return Received dword
  */
-
-void spi_transfer_26(uint8_t bus, uint32_t data);
-void spi_transfer_23(uint8_t bus, uint32_t data);
-
 uint32_t spi_transfer_32(uint8_t bus, uint32_t data);
 /**
  * \brief Transfer buffer of words over SPI
