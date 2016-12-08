@@ -28,7 +28,11 @@ static char mqtt_client_id[2] = { 0, 0 };
 
 SemaphoreHandle_t wifi_alive;
 QueueHandle_t publish_queue;
+static QueueHandle_t * rgbQueueHandle = NULL;
 
+
+#define RGB_MSG_LEN 18
+#define RGB_MSG_LEN_MIN 10
 
 static void temp_pub_task(void *p)
 {
@@ -51,28 +55,117 @@ static void temp_pub_task(void *p)
          {
             printf("xQueueSend ok\n");
          }
-         free(msg);
+         if (msg)
+            free(msg);
          msg = NULL;
       }
-
-      taskYIELD();
-      // vTaskDelayMs(553);
+      vTaskDelayMs(132);
+      // taskYIELD();
    }
 }
 
+static char rgb_keys[4] =  { 'r', 'g', 'b', '~'};
+uint8_t rgb_out[3] = { 0, 0, 0 };
+
 static void  topic_received(mqtt_message_data_t *md)
 {
-   int i;
+   int i, parse_loc;
+   bool contParse = true;
+
+   uint8_t * rgb_colors = NULL;
    mqtt_message_t *message = md->message;
    printf("Received: ");
-   for( i = 0; i < md->topic->lenstring.len; ++i)
-      printf("%c", md->topic->lenstring.data[ i ]);
+   // if (md->topic->lenstring.len != RGB_MSG_LEN)
+   // {
+   //    printf("unkown msg len = %d\n", md->topic->lenstring.len);
+   //    return;
+   // }
+   if (((int)message->payloadlen > RGB_MSG_LEN) || ( (int)message->payloadlen < RGB_MSG_LEN_MIN ) )
+   {
+      printf("unkown msg len = %d\n", (int)message->payloadlen);
+      return;
+   }
 
-   printf(" = ");
-   for( i = 0; i < (int)message->payloadlen; ++i)
-      printf("%c", ((char *)(message->payload))[i]);
+   parse_loc = 0;
 
-   printf("\r\n");
+   uint8_t rgb_read[3];
+
+   for( i = 0; i < (int)message->payloadlen; )
+   {
+      if (i >= (int)message->payloadlen)
+         goto parse_err;
+
+      char * next_ch = (char*) &(((char*)message->payload)[ i ]);
+
+      printf("1 %c\n", *next_ch);
+      if (*next_ch == '~')
+      {
+         goto done;
+      }
+
+      if ( (!next_ch) || (*next_ch != rgb_keys[parse_loc]) || (*(next_ch+1) != ':') )
+         goto parse_err;
+
+      printf("2\n");
+      int j;
+      int okChars = 0;
+      char tmpBuf[4] = { 0, 0, 0, 0};
+
+      for ( j = 0; j < 4; j++)
+      {
+         char * next_num = (char*) &(((char*)message->payload)[ i+2+j ]);
+         if ((*next_num < '0') || (*next_num > '9'))
+         {
+            if ( (parse_loc <= 3) && (*next_num == rgb_keys[parse_loc+1])  )
+            {
+               if (parse_loc == 3)
+                  goto done;
+               parse_loc++;
+               printf("2\n");
+               break;
+            }
+
+            if (j == 0)
+            {
+               goto parse_err;
+            }
+         }
+         else
+         {
+            printf("3\n");
+            okChars++;
+            tmpBuf[j] = *next_num;
+         }
+      }
+
+      if (okChars)
+      {
+         int x = atoi(tmpBuf);
+         rgb_read[parse_loc-1] = (uint8_t) x;
+         printf("found %d\n", x);
+      }
+
+      if (parse_loc >= 3)
+      {
+         printf("done!\n");
+         goto done;
+      } else {
+         i+=okChars + 2;
+      }
+   }
+done:
+   rgb_out[0] = rgb_read[0];
+   rgb_out[1] = rgb_read[1];
+   rgb_out[2] = rgb_read[2];
+
+   /* QueueHandle_t	xQueue, const void* pvItemToQueue, TickType_t xTicksToWait */
+   xQueueSendToBack(*rgbQueueHandle, &rgb_out, (TickType_t)0);
+   // rgb_colors = (uint8_t *) malloc(sizeof(uint8_t)*12);
+   return;
+
+parse_err:
+   printf("parse err\n");
+   return;
 }
 
 static void  mqtt_task(void *pvParameters)
@@ -106,8 +199,12 @@ static void  mqtt_task(void *pvParameters)
       data.willFlag       = 0;
       data.MQTTVersion    = 4;
       data.clientID.cstring   = mqtt_client_id;
-      data.username.cstring   = MQTT_USER;
-      data.password.cstring   = MQTT_PASS;
+      // data.username.cstring   = MQTT_USER;
+      // data.password.cstring   = MQTT_PASS;
+      // data.username.cstring   = "";
+      // data.password.cstring   = "";
+      data.username.cstring   = NULL;
+      data.password.cstring   = NULL;
       data.keepAliveInterval  = 10;
    #ifdef MQTT_CLEANSESSION
       data.cleansession   = 1;
@@ -125,7 +222,7 @@ static void  mqtt_task(void *pvParameters)
          continue;
       }
       printf("done\r\n");
-      mqtt_subscribe(&client, "/esptopic", MQTT_QOS1, topic_received);
+      mqtt_subscribe(&client, "/cpe439/rgb", MQTT_QOS1, topic_received);
       xQueueReset(publish_queue);
 
       while(1)
@@ -140,7 +237,7 @@ static void  mqtt_task(void *pvParameters)
             message.dup = 0;
             message.qos = MQTT_QOS1;
             message.retained = 0;
-            ret = mqtt_publish(&client, "/beat", &message);
+            ret = mqtt_publish(&client, "/cpe439/temp", &message);
             if (ret != MQTT_SUCCESS )
             {
                printf("error while publishing message: %d\n", ret );
@@ -197,8 +294,11 @@ static void  wifi_task(void *pvParameters)
     }
 }
 
-void mqtt_app_init(QueueHandle_t * pubTempQueue)
+void mqtt_app_init(QueueHandle_t * pubTempQueue, QueueHandle_t * rgbQueue)
 {
+   if (rgbQueue)
+      rgbQueueHandle = rgbQueue;
+
    printf("mqtt_app_init\n");
 
    vSemaphoreCreateBinary(wifi_alive);

@@ -22,6 +22,8 @@ SemaphoreHandle_t wifi_alive;
 QueueHandle_t publish_queue;
 #define PUB_MSG_LEN 16
 
+#define RGB_MSG_LEN 12
+
 static void  beat_task(void *pvParameters)
 {
     TickType_t xLastWakeTime = xTaskGetTickCount();
@@ -38,19 +40,56 @@ static void  beat_task(void *pvParameters)
     }
 }
 
+static char rgb[3] =  { 'r', 'g', 'b' };
+
+/* RBG msg format: r:_g:_b_! */
 static void  topic_received(mqtt_message_data_t *md)
 {
-    int i;
-    mqtt_message_t *message = md->message;
-    printf("Received: ");
-    for( i = 0; i < md->topic->lenstring.len; ++i)
-        printf("%c", md->topic->lenstring.data[ i ]);
+   int i, parse_loc;
+   uint8_t * rgb_colors = NULL;
+   mqtt_message_t *message = md->message;
+   printf("Received: ");
+   if (md->topic->lenstring.len != RGB_MSG_LEN)
+   {
+      printf("unkown msg len = %d\n", md->topic->lenstring.len);
+      return;
+   }
+   // memcpy(&prev_temp, &latest_temp, sizeof(Temperature));
+   // printf("new temp = %c%d.%02d deg.C\n", latest_temp.sign, latest_temp.val, latest_temp.fract);
+   // int ret = sprintf(buf, "%c%d.%02d", latest_temp.sign, latest_temp.val, latest_temp.fract);
 
-    printf(" = ");
-    for( i = 0; i < (int)message->payloadlen; ++i)
-        printf("%c", ((char *)(message->payload))[i]);
 
-    printf("\r\n");
+   parse_loc = 0;
+
+   uint8_t rgb_read[3];
+
+   // RGB_MSG_LEN
+   for( i = 0; i < md->topic->lenstring.len; i++)
+   {
+      char * next_ch = (char*) &md->topic->lenstring.data[ i ];
+
+      switch (rgb[ parse_loc ])
+      {
+         case 'r': {
+            if ( (*next_ch == 'r') && ( (*(next_ch+1) == ':') )
+            {
+               rgb_read[++parse_loc] = *(next_ch+2);
+               i += 2;
+               printf("found 'r'. read = %d\n", rgb_read[0]);
+            } else {
+               printf("?? next char = %c\n", *next_ch);
+               return;
+            }
+         }
+      }
+   }
+   // printf("%c", md->topic->lenstring.data[ i ]);
+
+   // printf(" = ");
+   // for( i = 0; i < (int)message->payloadlen; ++i)
+   //    printf("%c", ((char *)(message->payload))[i]);
+
+   printf("\r\n");
 }
 
 static const char *  get_my_id(void)
@@ -138,7 +177,7 @@ static void  mqtt_task(void *pvParameters)
          continue;
       }
       printf("done\r\n");
-      mqtt_subscribe(&client, "/esptopic", MQTT_QOS1, topic_received);
+      mqtt_subscribe(&client, "/cpe439/rgb", MQTT_QOS1, topic_received);
       xQueueReset(publish_queue);
 
       while(1)
@@ -153,7 +192,7 @@ static void  mqtt_task(void *pvParameters)
             message.dup = 0;
             message.qos = MQTT_QOS1;
             message.retained = 0;
-            ret = mqtt_publish(&client, "/beat", &message);
+            ret = mqtt_publish(&client, "/cpe439/temp", &message);
             if (ret != MQTT_SUCCESS )
             {
                printf("error while publishing message: %d\n", ret );

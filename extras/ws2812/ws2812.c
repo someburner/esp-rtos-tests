@@ -302,7 +302,7 @@ void animTask(void *p)
          {
             case WS2812_ANIM_FADE_INOUT:
             {
-               ws2812_fade_cb();
+               // ws2812_fade_cb();
             } break;
 
             //ws2812_showColor (PIXELS, 0xB2, 0x22, 0x22);  // firebrick

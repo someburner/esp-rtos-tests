@@ -11,12 +11,14 @@
 #define vTaskDelayMs(ms)	vTaskDelay((ms)/portTICK_PERIOD_MS)
 
 QueueHandle_t tempPubQueue;
+QueueHandle_t rgbRxQueue;
 
 static int stagger = 0;
+static uint8_t cur_color[3] = {0, 255, 0};
 
 void tempTask(void *pvParameters)
 {
-   mqtt_app_init(&tempPubQueue);
+   mqtt_app_init(&tempPubQueue, &rgbRxQueue);
 
    /* Wait until we have joined AP and are assigned an IP */
    while (sdk_wifi_station_get_connect_status() != STATION_GOT_IP)
@@ -26,6 +28,7 @@ void tempTask(void *pvParameters)
    IOMUX_GPIO2 = IOMUX_GPIO2_FUNC_GPIO | IOMUX_PIN_OUTPUT_ENABLE;
 
    OW_init(&tempPubQueue);
+   ws2812_init();
 
    printf("Request temp ");
    if (OW_request_new_temp())
@@ -57,27 +60,24 @@ void tempTask(void *pvParameters)
    }
 }
 
-// void colorLock(void *pvParameters)
-// {
-//    while(1)
-//    {
-//       vTaskDelayMs(15); // Print every second
-//       // ws2812_showColor (PIXELS, 0xB2, 0x22, 0x22);  // firebrick
-//    }
-// }
-
-// void tempPubRxTask(void *p)
-// {
-//    QueueHandle_t * tPubQueue = (QueueHandle_t *)p;
-//
-//    while(1) {
-//       xQueueSendToBackFromISR(tsqueue, &now, NULL);
-//
-//       xQueueReceive(*tPubQueue, &button_ts, portMAX_DELAY);
-//       vTaskDelayMs(1234UL); // Print every second
-//
-//    }
-// }
+void colorLock(void *pvParameters)
+{
+   while(1)
+   {
+      uint8_t msg[3];
+      while (xQueueReceive(rgbRxQueue, (void *)msg, 0) == pdTRUE)
+      {
+         printf("rgb queue rx: r:%dg:%db:%d\n", msg[0], msg[1], msg[2] );
+         cur_color[0] =  msg[0];
+         cur_color[1] =  msg[1];
+         cur_color[2] =  msg[2];
+         vTaskDelayMs(123);
+      }
+      // firebrick
+      ws2812_showColor (32, cur_color[0], cur_color[1], cur_color[2]);
+      vTaskDelayMs(597);
+   }
+}
 
 void config_wifi()
 {
@@ -104,7 +104,9 @@ void user_init(void)
    // "+22.43\0"
    tempPubQueue = xQueueCreate(10, sizeof(char*));
 
-   // xTaskCreate(&colorLock, "colorLock", 256, NULL, HW_TMR_TASK_PRIO, NULL);
+   rgbRxQueue = xQueueCreate(10, sizeof(uint8_t)*3);
+
+   xTaskCreate(&colorLock, "colorLock", 256, NULL, WS_FADE_TASK_PRIO, NULL);
 
    xTaskCreate(tempTask, (signed char *)"tempTask", 512, NULL, TEMP_PUB_TASK_PRIO, NULL);
 
