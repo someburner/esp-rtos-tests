@@ -3,6 +3,9 @@
 
 #include <stdint.h>
 
+#define DOIT_ONEWIRE 1
+#define DOIT_WS2812  2
+
 typedef enum {
    HW_TIMER_DISABLED = 0,
    HW_TIMER_INIT = 1,
@@ -11,8 +14,10 @@ typedef enum {
    HW_TIMER_STOPPED = 4
 } HW_TIMER_STATE_T;
 
+void IRAM onewire_lock(void);
+void IRAM onewire_release(void);
+
 HW_TIMER_STATE_T hw_timer_get_state(void);
-uint32_t getTestCount(void);
 
 void hw_timer_init(void);
 void hw_timer_restart(void);

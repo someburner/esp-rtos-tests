@@ -19,7 +19,7 @@
 #define HW_TIMER_AUTOLOAD 0
 
 /* Uncoment to use clock div16 */
-#define CLK_DIV_SET_1
+// #define CLK_DIV_SET_1
 
 #define DIV1_LOADVAL  700
 #define DIV16_LOADVAL 44
@@ -37,7 +37,7 @@
  * arming/disarming/changing callbacks. Otherwise we'd crash most likely.     */
 static HW_TIMER_STATE_T hw_timer_state = HW_TIMER_DISABLED;
 
-static uint32_t testcout = 0;
+static int next_call = DOIT_WS2812;
 
 static uint32_t loadval = 0;
 
@@ -74,19 +74,25 @@ static ow_hw_t ow_hw;
 static void IRAM frc1_interrupt_handler(void)
 {
 #ifndef CLK_DIV_SET_1
-   #if HW_TIMER_WS2812
-      ws2812_doit();
-   #else
+   if (next_call == DOIT_ONEWIRE)
+   {
       OW_doit();
-   #endif
+   }
+   else
+   {
+      ws2812_doit();
+   }
    timer_set_load(FRC1, DIV16_LOADVAL);
 #else
    timer_set_load(FRC1, DIV1_LOADVAL);
-   #if HW_TIMER_WS2812
-      ws2812_doit();
-   #else
+   if (next_call == DOIT_ONEWIRE)
+   {
       OW_doit();
-   #endif
+   }
+   else
+   {
+      ws2812_doit();
+   }
 #endif
 }
 
@@ -98,9 +104,15 @@ HW_TIMER_STATE_T hw_timer_get_state(void)
    return hw_timer_state;
 }
 
-uint32_t getTestCount(void)
+
+void IRAM onewire_lock(void)
 {
-   return testcout;
+   next_call = DOIT_ONEWIRE;
+}
+
+void IRAM onewire_release(void)
+{
+   next_call = DOIT_WS2812;
 }
 
 void hw_timer_init(void)

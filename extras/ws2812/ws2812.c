@@ -176,9 +176,9 @@ void ws2812_showColor(uint16_t count, uint8_t r , uint8_t g , uint8_t b)
 
 void ws2812_showit_fade(void)
 {
-   static uint32_t intr_restore;
+   // static uint32_t intr_restore;
    sdk_os_delay_us(1);
-   intr_restore = _xt_disable_interrupts();
+   // intr_restore = _xt_disable_interrupts();
    if (ws->cur_pixel < PIXEL_COUNT)
    {
       // _xt_isr_mask( (1<<INUM_TIMER_FRC1) | (1<<INUM_TICK) | (1<<INUM_SOFT) | (1<<INUM_TIMER_FRC2)  );
@@ -188,7 +188,7 @@ void ws2812_showit_fade(void)
    } else {
       ws->cur_pixel = 0;
    }
-   _xt_restore_interrupts(intr_restore);
+   // _xt_restore_interrupts(intr_restore);
    sdk_os_delay_us(1);
 }
 
@@ -300,6 +300,9 @@ void animTask(void *p)
 {
    while(1)
    {
+      vTaskDelayMs(23);
+      taskYIELD();
+
       int anim = ws->cur_anim;
       if (ws->state == WS_STATE_DOIT_ACTIVE)
       {
@@ -314,7 +317,6 @@ void animTask(void *p)
          }
       }
       // vTaskDelayMs(MS_DIV_PER_CB(fade->period, 255));
-      vTaskDelayMs(15);
    }
 }
 
@@ -347,7 +349,7 @@ bool ws2812_init(void)
 
    // driver_event_register_ws(ws);
 
-   xTaskCreate(&animTask, "animTask", 1024, NULL, 0, NULL);
+   xTaskCreate(&animTask, "animTask", 1024, NULL, WS_FADE_TASK_PRIO, NULL);
 
    return true;
 }

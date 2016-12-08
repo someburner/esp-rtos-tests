@@ -15,7 +15,6 @@ void task1(void *pvParameters)
    while(1) {
       vTaskDelayMs(2000UL); // Print every second
       /* Should be close to 1000 */
-      // uint32_t count = getTestCount();
       // printf("test count = %lu\n", count);
       gpio_write(2, onoff);
       onoff = !onoff;

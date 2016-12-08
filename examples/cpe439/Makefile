@@ -1,5 +1,5 @@
 PROGRAM=cpe439
-EXTRA_COMPONENTS = extras/paho_mqtt_c extras/hw_timer extras/onewire extras/crc
+EXTRA_COMPONENTS = extras/paho_mqtt_c extras/hw_timer extras/ws2812 extras/onewire extras/crc
 
 # Create user flags and pass to main program
 user_CFLAGS += -DBAUD_RATE=$(BAUD_RATE) -DMQTT_HOST=$(MQTT_HOST) \
@@ -7,7 +7,7 @@ user_CFLAGS += -DBAUD_RATE=$(BAUD_RATE) -DMQTT_HOST=$(MQTT_HOST) \
 	-DMQTT_VERSION=$(MQTT_VERSION) -DMQTT_0LEN_CLIENT_ID=$(MQTT_0LEN_CLIENT_ID) \
 	-DTEMP_UPDATE_MS=$(TEMP_UPDATE_MS) -DWIFI_TASK_PRIO=$(WIFI_TASK_PRIO) \
 	-DTEMP_PUB_TASK_PRIO=$(TEMP_PUB_TASK_PRIO) -DMQTT_TASK_PRIO=$(MQTT_TASK_PRIO) \
-	-DOW_TASK_PRIO=$(OW_TASK_PRIO)
+	-DHW_TMR_TASK_PRIO=$(HW_TMR_TASK_PRIO)
 
 #-D=$()
 PROGRAM_CFLAGS += $(user_CFLAGS)

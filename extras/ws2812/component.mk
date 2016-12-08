@@ -5,4 +5,7 @@ INC_DIRS += $(ws2812_ROOT)
 # args for passing into compile rule generation
 ws2812_SRC_DIR =  $(ws2812_ROOT)
 
+ws2812_CFLAGS += \
+	-DWS_FADE_TASK_PRIO=$(WS_FADE_TASK_PRIO)
+
 $(eval $(call component_compile_rules,ws2812))
