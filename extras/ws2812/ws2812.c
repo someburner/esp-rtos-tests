@@ -145,23 +145,26 @@ void IRAM ws2812_sendByte(uint8_t b)
 
 // Display a single color on the whole string
 // void IRAM ws2812_sendPixels()
-void  ws2812_sendPixels()
+void ws2812_sendPixels()
 {
-    // NeoPixel wants colors in green-then-red-then-blue order
-   ws2812_sendByte(ws->g);
+   // NeoPixel wants colors in green-then-red-then-blue order
+   // WS2812B wants it RGB
    ws2812_sendByte(ws->r);
+   ws2812_sendByte(ws->g);
    ws2812_sendByte(ws->b);
 }
 
-void ws2812_sendPixel_params(uint8_t r, uint8_t g, uint8_t b)
+void IRAM ws2812_sendPixel_params(uint8_t r, uint8_t g, uint8_t b)
 {
-   ws2812_sendByte(g); // NeoPixel wants colors in green-then-red-then-blue order
+   // NeoPixel wants colors in green-then-red-then-blue order
+   // WS2812B wants it RGB
    ws2812_sendByte(r);
+   ws2812_sendByte(g);
    ws2812_sendByte(b);
 }
 
 // Display a single color on the whole string
-void ws2812_showColor(uint16_t count, uint8_t r , uint8_t g , uint8_t b)
+void IRAM ws2812_showColor(uint16_t count, uint8_t r , uint8_t g , uint8_t b)
 {
    uint16_t pixel;
    for (pixel = 0; pixel < count; pixel++)

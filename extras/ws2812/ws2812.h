@@ -18,8 +18,6 @@
 #include "espressif/esp_common.h" // sdk_os_delay_us
 #include "esp/gpio.h"
 
-#define PIXEL_COUNT 32
-
 #define WS2812_ANIM_INVALID    0
 #define WS2812_ANIM_FADE_INOUT 1
 #define WS2812_ANIM_COLOR_ONLY 2

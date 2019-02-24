@@ -6,6 +6,7 @@ INC_DIRS += $(ws2812_ROOT)
 ws2812_SRC_DIR =  $(ws2812_ROOT)
 
 ws2812_CFLAGS += \
-	-DWS_FADE_TASK_PRIO=$(WS_FADE_TASK_PRIO)
+	-DWS_FADE_TASK_PRIO=$(WS_FADE_TASK_PRIO) \
+	-DPIXEL_COUNT=$(PIXEL_COUNT)
 
 $(eval $(call component_compile_rules,ws2812))
