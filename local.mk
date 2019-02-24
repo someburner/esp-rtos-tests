@@ -1,22 +1,3 @@
-
-#############################################################
-# General
-#############################################################
-
-# Serial buad rate
-BAUD_RATE          ?= 921600
-
-#############################################################
-# MQTT Options
-#############################################################
-# You can use http://test.mosquitto.org/ to test mqtt_client
-# instead of setting up your own MQTT server
-MQTT_HOST ?= \"test.mosquitto.org\"
-MQTT_PORT ?= 1883
-
-MQTT_USER ?= \"mqtt_username\"
-MQTT_PASS ?= \"mqtt_password\"
-
 #############################################################
 # Flash Options (SDK)
 #############################################################

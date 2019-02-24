@@ -20,6 +20,12 @@
 # assume the 'root' directory (ie top of the tree) is the directory common.mk is in
 ROOT := $(dir $(lastword $(MAKEFILE_LIST)))
 
+ifneq ("$(wildcard $(ROOT).local/settings.mk)","")
+include $(ROOT).local/settings.mk
+else
+all: settings_help
+endif
+
 include $(ROOT)parameters.mk
 
 ifndef PROGRAM
@@ -294,7 +300,7 @@ clean:
 mkesptool2:
 	$(vecho) "esptool2"
 	$(Q) $(MAKE) -C ${ESPTOOL2_SRC_DIR}
-	$(Q) cp -f ${ESPTOOL2_SRC_DIR}/esptool2 $(PROJ_ROOT)utils/esptool2;
+	$(Q) cp -f ${ESPTOOL2_SRC_DIR}/esptool2 $(PROJ_ROOT)/utils/esptool2;
 	@rm -f ${ESPTOOL2_SRC_DIR}/esptool2
 
 rconf:
@@ -304,6 +310,16 @@ rconf:
 
 rboot:
 	$(Q) $(MAKE) -C ${RBOOT_SRC_DIR}
+
+settings_help:
+	@mkdir -p $(ROOT).local
+	@echo ""
+	@echo "----------------------- ERROR -----------------------"
+	@echo ".local/settings.mk is missing"
+	@echo "Copy settings.example.mk to .local/settings.mk,"
+	@echo "edit the paramters, and then continue"
+	@echo ""
+	@echo "-----------------------------------------------------"
 
 # print some useful help stuff
 help:

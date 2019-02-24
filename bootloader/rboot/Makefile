@@ -2,12 +2,13 @@
 # Makefile for rBoot
 # https://github.com/raburton/esp8266
 #
-PROJ_ROOT = /home/jeffrey/ESP8266/esp-freertos-7.5.2/
-OPENSDK_ROOT ?= /home/jeffrey/esp-open-sdk-1.5.4.1
+include ../../.local/settings.mk
+
+PROJ_ROOT = $(shell realpath ../../)
 XTENSA_BINDIR ?= $(OPENSDK_ROOT)/xtensa-lx106-elf/bin/
 
 # ESPTOOL2 ?= ../esptool2/esptool2
-ESPTOOL2 ?= $(PROJ_ROOT)utils/esptool2
+ESPTOOL2 ?= $(PROJ_ROOT)/utils/esptool2
 
 SPI_SIZE    ?= 4M
 SPI_SPEED   ?= 80

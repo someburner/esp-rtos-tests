@@ -8,7 +8,7 @@
 -include $(ROOT)local.mk
 -include local.mk
 
-PROJ_ROOT = /home/jeffrey/ESP8266/esp-freertos-7.5.2/
+PROJ_ROOT = $(shell realpath $(ROOT))
 
 # Output directories to store intermediate compiled files
 # relative to the program directory
@@ -17,13 +17,13 @@ FIRMWARE_DIR ?= $(PROGRAM_DIR)firmware/
 
 # esptool.py from https://github.com/themadinventor/esptool
 # ESPTOOL ?= esptool.py
-ESPTOOL ?= $(PROJ_ROOT)utils/esptool.py
+ESPTOOL ?= $(PROJ_ROOT)/utils/esptool.py
 # serial port settings for esptool.py
 ESPPORT ?= /dev/node_mcu
 
 # Esptool2
-ESPTOOL2 ?= $(PROJ_ROOT)utils/esptool2
-ESPTOOL2_SRC_DIR = $(PROJ_ROOT)utils/esptool_2/src
+ESPTOOL2 ?= $(PROJ_ROOT)/utils/esptool2
+ESPTOOL2_SRC_DIR = $(PROJ_ROOT)/utils/esptool_2/src
 
 #############################################################
 # Esptool flash options:
@@ -46,7 +46,7 @@ RBOOT_E2_SECTS       ?= .text .data .rodata
 RBOOT_E2_USER_ARGS   ?= -bin -boot2 -iromchksum -4096 -$(ET_FM) -80
 
 # rBoot setup
-RBOOT_SRC_DIR = $(PROJ_ROOT)bootloader/rboot
+RBOOT_SRC_DIR = $(PROJ_ROOT)/bootloader/rboot
 RBOOT=bin/rboot.bin
 COMMON=liblibc.a libjsmn.a libjson.a liblwip.a libmqtt.a libspiffs.a libutil.a \
    libnewcrypto.a libplatform.a librboot.a
@@ -63,9 +63,8 @@ PRINTF_SCANF_FLOAT_SUPPORT ?= 1
 FLAVOR ?= release # or debug
 
 # Compiler names, etc. assume gdb
-#CROSS ?= xtensa-lx106-elf-
-CROSS ?= /home/jeffrey/esp-open-sdk-1.5.4.1/xtensa-lx106-elf/bin/xtensa-lx106-elf-
-SDK_ROOT ?= /home/jeffrey/esp-open-sdk-1.5.4.1/sdk/
+CROSS    ?= $(OPENSDK_ROOT)/xtensa-lx106-elf/bin/xtensa-lx106-elf-
+SDK_ROOT ?= $(OPENSDK_ROOT)/sdk
 
 # Path to the filteroutput.py tool
 FILTEROUTPUT ?= $(ROOT)/utils/filteroutput.py
