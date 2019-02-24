@@ -68,7 +68,7 @@ static void temp_pub_task(void *p)
 static char rgb_keys[4] =  { 'r', 'g', 'b', '~'};
 uint8_t rgb_out[3] = { 0, 0, 0 };
 
-// Msg Format: r:RRR:gGGG:bBBB~
+// Msg Format: r:RRRg:GGGb:BBB~
 // Replace RRR, GGG, BBB with 0-255
 // mosquitto_pub -h test.mosquitto.org -t /cpe439/rgb -m 'r:255g:0b:0~'
 // mosquitto_pub -h test.mosquitto.org -t /cpe439/rgb -m 'r:0g:255b:0~'

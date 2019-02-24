@@ -143,7 +143,7 @@ A simple message format is used to send RGB values to the device. Commands
 should take this form:
 
 ```
-r:RRR:gGGG:bBBB~
+r:RRRg:GGGb:BBB~
 ```
 
 Replace RRR, GGG, BBB with 0-255. For example, these 3 commands will switch the
