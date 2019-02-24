@@ -1,81 +1,172 @@
 # About
 
-**DEVELOP**
+Class project using FreeRTOS w/ ESP8266. Forked from [esp-open-rtos](https://github.com/SuperHouse/esp-open-rtos)
 
-Experimental repo for testing FreeRTOS w/ ESP8266. Will gradually morph to
-something for a class project. probably not much use to anyone else unless you
-want to see how to do some custom rBoot configurations.
+# Hardware
 
-Forked from [esp-open-rtos](https://github.com/SuperHouse/esp-open-rtos)
-
-```
-git clone https://github.com/someburner/esp-rtos-tests.git
-```
+* WS2812B LED strip
+* NodeMCU (ESP8266 / ESP12E)
+* MAX31820 temperature sensor
+* 4.7K ohm resistor (for MAX31820)
+* 220 ohm resistor (for WS2812B)
+* Some wires and micro-USB cable
 
 # Building
 
-**NOTE**:
-* The `-C` option to make is the same as `cd <dir> && make`
-* The -j flag tells make that it is allowed to spawn the provided amount of
-  'threads'. Ideally each thread is executed on its own core/CPU, so your
-  multi-core/CPU environment is used to its fullest.
+**NOTE**: Must be on linux to build.
 
-**Example**:
+1. esp-open-sdk
 
-```
-make -j4 -C examples/cpe439
-make flash -j4 -C examples/cpe439 ESPPORT=/dev/node_mcu
-make -j4 -C examples/cpe439 clean
+[esp-open-sdk](https://github.com/pfalcon/esp-open-sdk) is required to build
+this project. Head to that link for build instructions. Standlone build is fine.
+Some of the required dependencies for esp-open-sdk are also needed in this
+project, namely:
 
-make -j4 -C examples/ws2812_test
-make flash -C examples/ws2812_test ESPPORT=/dev/node_mcu
+* `python3`
+* `python3-pip`
+* `pyserial` -> `pip3 install pyserial`
+* `gcc`, `make`
 
-make -j4 -C examples/mqtt_client
-make flash -j4 -C examples/mqtt_client ESPPORT=/dev/node_mcu
+2. Setup
 
-make -j4 -C examples/onewire_hw_test
-make flash -j4 -C examples/onewire_hw_test ESPPORT=/dev/node_mcu
+Clone this repository, create a `.local` folder in project root, copy over
+example settings, and make edits.
 
-```
-
-**esptool2**:
-```
-make mkesptool2 -C examples/http_get
+```sh
+git clone https://github.com/someburner/esp-rtos-tests.git
+cd esp-rtos-tests
+mkdir -p .local
+cp settings.example.mk .local/settings.mk
 ```
 
-**rboot**:
+In particular, `OPENSDK_ROOT`, `WIFI_SSID`, `WIFI_PASS`, and `PIXEL_COUNT` will
+need to be changed. `PIXEL_COUNT` should be set to the number of LEDs on your
+WS2812B LED strip.
+
+3. Bootloader
+
+Once `OPENSDK_ROOT` is set, you can build the bootloader and the project.
+You may skip building esptool2 and bootloader (rboot) as their binaries are
+included in this repo. But commands to re-generate are included for reference.
+
+```sh
+# esptool2, required to build bootloader and generate binaries
+make mkesptool2 -C examples/cpe439
+
+# bootloader
+make -C bootloader/rboot
+
+# clean project
+make -C examples/cpe439 clean
+
+# build project
+make -C examples/cpe439
 ```
-make rboot -C examples/http_get
+
+# Hardware connections
+
+Before flashing, make sure hardware is connected. The definitions in
+`settings.example.mk` are set to be hooked up as follows:
+
+### WS2812B
+
+* WS2812B 3.3v -> NodeMCU 3.3v
+* WS2812B Data -> 220 ohm -> NodeMCU D7
+* WS2812B GND -> NodeMCU GND
+
+### MAX31820
+
+* MAX31820 3.3v -> NodeMCU 3.3v
+* MAX31820 Data -> NodeMCU D1
+* MAX31820 Data -> 4.7K Ohm -> NodeMCU 3.3v
+
+# Flashing
+
+To flash the project, connect NodeMCU to USB and run:
+
+```sh
+# flash project
+make flash -C examples/cpe439 ESPPORT=/dev/ttyUSB0
+
+# if you get permission errors, try this:
+sudo chown $(whoami):$(whoami) /dev/ttyUSB0
 ```
 
-### Hardware Info
+**NOTE**: `/dev/ttyUSB0` must correspond to the serial port of NodeMCU. Usually
+it will be `/dev/ttyUSB0`.
 
-**NodeMCU**:
+# Run / Usage
 
-* "D1" on silkscreen == GPIO5
+## UART
 
-### Additonal Build Info
+With pyserial you can watch UART output with the following command:
+
+```sh
+python3 -m serial.tools.miniterm --eol CRLF --exit-char 003 /dev/ttyUSB0 500000 --raw -q
+```
+
+**protip**: Add a line like this in your `~/.bashrc`
+
+```
+alias nodemcu='python3 -m serial.tools.miniterm --eol CRLF --exit-char 003 /dev/ttyUSB0 500000 --raw -q'
+```
+
+Then you can bring up serial with just `nodemcu`.
+
+## MQTT
+
+Assuming hardware is connected correctly, you can interact with the device via
+MQTT.
+
+**NOTE**: Commands assuming mosquitto pub/sub clients are installed. To install:
+
+```sh
+sudo apt-get install mosquitto-clients
+```
+
+### Listening for temperature updates
+
+On init, the device immediately begins polling the temperature sensor. These
+should be logging out on serial every couple seconds. If they aren't, check
+your connections. Once the device is connected to WiFi and MQTT, it will begin
+publishing messages on the `/cpe439/temp` topic.
+
+To watch these updates come in remotely:
+
+```sh
+mosquitto_sub -h test.mosquitto.org -t /cpe439/temp
+```
+
+### Changing WS2812B colors
+
+A simple message format is used to send RGB values to the device. Commands
+should take this form:
+
+```
+r:RRR:gGGG:bBBB~
+```
+
+Replace RRR, GGG, BBB with 0-255. For example, these 3 commands will switch the
+colors to red, green, and blue respectively:
+
+```sh
+# red
+mosquitto_pub -h test.mosquitto.org -t /cpe439/rgb -m 'r:255g:0b:0~'
+# green
+mosquitto_pub -h test.mosquitto.org -t /cpe439/rgb -m 'r:0g:255b:0~'
+# blue
+mosquitto_pub -h test.mosquitto.org -t /cpe439/rgb -m 'r:0g:0b:255~'
+```
+
+<br>
+<br>
+
+## Additonal Build Info
 
 The [esp-open-rtos build process wiki page](https://github.com/SuperHouse/esp-open-rtos/wiki/Build-Process)
 has in-depth details of the build process.
 
-**Track/untrack local config**:
-```
-#ignore chagnes
-git update-index --assume-unchanged include/ssid_config.h
-git update-index --assume-unchanged local.mk
-
-#don't ignore
-git update-index --no-assume-unchanged include/ssid_config.h
-git update-index --no-assume-unchanged local.mk
-```
-
-**Pull in esp-open-rtos patches**:
-```
-git pull upstream master && git push origin master
-```
-
-# Code Structure
+## Code Structure
 
 * `examples` contains a range of example projects (one per subdirectory). Check them out!
 * `include` contains header files from Espressif RTOS SDK, relating to the binary libraries & Xtensa core.
@@ -89,8 +180,7 @@ git pull upstream master && git push origin master
 * `lwip` contains the lwIP TCP/IP library. See [Third Party Libraries](https://github.com/SuperHouse/esp-open-rtos/wiki/Third-Party-Libraries) wiki page for details.
 * `libc` contains the newlib libc. [Libc details here](https://github.com/SuperHouse/esp-open-rtos/wiki/libc-configuration).
 
-
-# Components
+## Components
 * [FreeRTOS v9.0.0](http://www.freertos.org/)
 * [Espressif IOT RTOS SDK](https://github.com/espressif/ESP8266_RTOS_SDK)
 * [esp-open-sdk](https://github.com/pfalcon/esp-open-sdk/)
@@ -110,10 +200,3 @@ Some binary libraries appear to contain unattributed open source code:
 
 * libnet80211.a & libwpa.a appear to be based on FreeBSD net80211/wpa, or forks of them. ([See this issue](https://github.com/SuperHouse/esp-open-rtos/issues/4)).
 * libudhcp has been removed from esp-open-rtos. It was released with the Espressif RTOS SDK but udhcp is GPL licensed.
-
-
-
-
-
-
-# end
