@@ -1,5 +1,4 @@
 #include <string.h>
-#include <ssid_config.h>
 #include "espressif/esp_common.h"
 #include "esp/uart.h"
 #include "FreeRTOS.h"
@@ -7,6 +6,7 @@
 #include "task.h"
 
 #include "ws2812.h"
+#include "cpe439.h"
 
 #define vTaskDelayMs(ms)	vTaskDelay((ms)/portTICK_PERIOD_MS)
 
@@ -71,10 +71,10 @@ void colorLock(void *pvParameters)
          cur_color[0] =  msg[0];
          cur_color[1] =  msg[1];
          cur_color[2] =  msg[2];
-         vTaskDelayMs(123);
+         // vTaskDelayMs(123);
       }
       // firebrick
-      ws2812_showColor (32, cur_color[0], cur_color[1], cur_color[2]);
+      ws2812_showColor(PIXEL_COUNT, cur_color[0], cur_color[1], cur_color[2]);
       vTaskDelayMs(597);
    }
 }
@@ -82,11 +82,13 @@ void colorLock(void *pvParameters)
 void config_wifi()
 {
    static struct sdk_station_config config = {
-      .ssid = WIFI_SSID,
-      .password = WIFI_PASS,
+      .ssid = MAKE_STRING(WIFI_SSID),
+      .password = MAKE_STRING(WIFI_PASS),
    };
 
    printf("config_wifi\n");
+   printf("SSID: %s\n", config.ssid);
+   printf("PASS: %s\n", config.password);
    sdk_wifi_set_opmode(STATION_MODE);
    sdk_wifi_station_set_config(&config);
 }

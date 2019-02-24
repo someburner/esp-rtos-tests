@@ -14,6 +14,7 @@
 #include <paho_mqtt_c/MQTTClient.h>
 
 #include <semphr.h>
+#include "cpe439.h"
 
 #define vTaskDelayMs(ms)	vTaskDelay((ms)/portTICK_PERIOD_MS)
 
@@ -66,6 +67,12 @@ static void temp_pub_task(void *p)
 
 static char rgb_keys[4] =  { 'r', 'g', 'b', '~'};
 uint8_t rgb_out[3] = { 0, 0, 0 };
+
+// Msg Format: r:RRR:gGGG:bBBB~
+// Replace RRR, GGG, BBB with 0-255
+// mosquitto_pub -h test.mosquitto.org -t /cpe439/rgb -m 'r:255g:0b:0~'
+// mosquitto_pub -h test.mosquitto.org -t /cpe439/rgb -m 'r:0g:255b:0~'
+// mosquitto_pub -h test.mosquitto.org -t /cpe439/rgb -m 'r:0g:0b:255~'
 
 static void  topic_received(mqtt_message_data_t *md)
 {
@@ -184,9 +191,8 @@ static void  mqtt_task(void *pvParameters)
    {
       xSemaphoreTake(wifi_alive, portMAX_DELAY);
       printf("%s: started\n\r", __func__);
-      printf("%s: (Re)connecting to MQTT server %s ... ",__func__,
-      MQTT_HOST);
-      ret = mqtt_network_connect(&network, MQTT_HOST, MQTT_PORT);
+      printf("%s: (Re)connecting to MQTT server %s ... ",__func__, MAKE_STRING(MQTT_HOST));
+      ret = mqtt_network_connect(&network, MAKE_STRING(MQTT_HOST), MQTT_PORT);
       if( ret )
       {
          printf("error: %d\n\r", ret);
